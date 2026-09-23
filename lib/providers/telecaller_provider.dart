@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/utils/pagination_data.dart';
 import '../services/telecaller_service.dart';
 
 class TelecallerProvider extends ChangeNotifier {
@@ -21,12 +22,7 @@ class TelecallerProvider extends ChangeNotifier {
     try {
       final result = await TelecallerService.getEnquiries(staffId);
       if (result['success'] == true) {
-        final data = result['data'];
-        if (data is List) {
-          _enquiries = data;
-        } else {
-          _enquiries = [];
-        }
+        _enquiries = PaginationData.parse(result['data']).content;
       } else {
         error = result['message'] ?? 'Failed to load enquiries';
       }
@@ -95,12 +91,7 @@ class TelecallerProvider extends ChangeNotifier {
     try {
       final result = await TelecallerService.getCustomFollowups(staffId);
       if (result['success'] == true) {
-        final data = result['data'];
-        if (data is List) {
-          _followups = data;
-        } else {
-          _followups = [];
-        }
+        _followups = PaginationData.parse(result['data']).content;
       } else {
         error = result['message'] ?? 'Failed to load custom followups';
       }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/pagination_data.dart';
 import '../../../services/admin_course_management_service.dart';
 import '../../../routes/app_routes.dart';
+import '../../../widgets/pagination_bar.dart';
 import '../../../widgets/status_badge.dart';
 
 class AdminOfferedCourseListScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class _AdminOfferedCourseListScreenState
     extends State<AdminOfferedCourseListScreen> {
   final _searchCtrl = TextEditingController();
   List<dynamic> _courses = [];
+  PaginationData _paged = const PaginationData();
   bool _loading = true;
   String? _error;
 
@@ -30,20 +33,23 @@ class _AdminOfferedCourseListScreenState
     super.dispose();
   }
 
-  Future<void> _fetch() async {
+  Future<void> _fetch({int page = 0}) async {
     setState(() { _loading = true; _error = null; });
     try {
-      final result = await AdminCourseManagementService.getAllOfferedCourses();
+      final result = await AdminCourseManagementService.getAllOfferedCourses(
+          page: page,
+          size: 20,
+      );
       if (result['success'] == true) {
         final data = result['data'];
-        // /api/course/get-all returns both categories; keep only COURSE here.
-        _courses = data is List
-            ? (data.where((e) =>
-                    e is Map &&
-                    (e['category']?.toString() ?? '').toUpperCase() ==
-                        'COURSE')
-                .toList())
-            : [];
+        // /api/course/get-all returns a Spring Page; both categories are
+        // present server-side, so keep only COURSE here per page.
+        _paged = PaginationData.parse(data);
+        _courses = _paged.content
+            .where((e) =>
+                e is Map &&
+                (e['category']?.toString() ?? '').toUpperCase() == 'COURSE')
+            .toList();
       } else {
         _error = result['message'] ?? 'Failed to load';
       }
@@ -169,6 +175,11 @@ class _AdminOfferedCourseListScreenState
                             },
                           ),
                         ),
+        ),
+        PaginationBar(
+          data: _paged,
+          isLoading: _loading,
+          onPageChanged: (page) => _fetch(page: page),
         ),
       ]),
     );

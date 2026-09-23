@@ -7,6 +7,7 @@ import '../../../providers/internship_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../widgets/loading_widget.dart';
 import '../../../widgets/empty_widget.dart';
+import '../../../widgets/pagination_bar.dart';
 import '../../../widgets/status_badge.dart';
 
 class TlCourseListScreen extends ConsumerStatefulWidget {
@@ -177,47 +178,57 @@ class _TlCourseListScreenState extends ConsumerState<TlCourseListScreen>
           child: ResponsiveCentered(
             child: TabBarView(controller: _tab, children: [
             // Courses Tab
-            cp.isLoading
-                ? const LoadingWidget(message: 'Loading courses...')
-                : courses.isEmpty
-                    ? EmptyWidget(
-                        message: cp.list.isEmpty
-                            ? 'No courses yet'
-                            : 'No courses match filter',
-                        icon: Icons.menu_book_outlined,
-                        actionLabel: '+ Create Course',
-                        onAction: () => Navigator.pushNamed(
-                            context, AppRoutes.tlCreateCourse))
-                    : RefreshIndicator(
-                        onRefresh: () => cp.fetch(),
-                        color: AppColors.accent,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
-                          itemCount: courses.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (_, i) {
-                            final c = courses[i];
-                            return _CourseCard(
-                              title: c.courseName,
-                              code: c.courseCode,
-                              status: c.status,
-                              duration: c.duration,
-                              trainer: c.batchId,
-                              fees: c.totalFees,
-                              availableOnline: c.availableSeatsOnline,
-                              totalOnline: c.totalSeatsOnline,
-                              availableOffline: c.availableSeatsOffline,
-                              totalOffline: c.totalSeatsOffline,
-                              color: AppColors.card1,
-                              onTap: () => Navigator.pushNamed(
-                                      context, AppRoutes.tlCourseDetail,
-                                      arguments: {'courseId': c.id})
-                                  .then((_) => cp.fetch()),
-                            );
-                          },
-                        ),
-                      ),
+            Column(children: [
+              Expanded(
+                child: cp.isLoading
+                    ? const LoadingWidget(message: 'Loading courses...')
+                    : courses.isEmpty
+                        ? EmptyWidget(
+                            message: cp.list.isEmpty
+                                ? 'No courses yet'
+                                : 'No courses match filter',
+                            icon: Icons.menu_book_outlined,
+                            actionLabel: '+ Create Course',
+                            onAction: () => Navigator.pushNamed(
+                                context, AppRoutes.tlCreateCourse))
+                        : RefreshIndicator(
+                            onRefresh: () => cp.refresh(),
+                            color: AppColors.accent,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                              itemCount: courses.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (_, i) {
+                                final c = courses[i];
+                                return _CourseCard(
+                                  title: c.courseName,
+                                  code: c.courseCode,
+                                  status: c.status,
+                                  duration: c.duration,
+                                  trainer: c.batchId,
+                                  fees: c.totalFees,
+                                  availableOnline: c.availableSeatsOnline,
+                                  totalOnline: c.totalSeatsOnline,
+                                  availableOffline: c.availableSeatsOffline,
+                                  totalOffline: c.totalSeatsOffline,
+                                  color: AppColors.card1,
+                                  onTap: () => Navigator.pushNamed(
+                                          context, AppRoutes.tlCourseDetail,
+                                          arguments: {'courseId': c.id})
+                                      .then((_) => cp.refresh()),
+                                );
+                              },
+                            ),
+                          ),
+              ),
+              PaginationBar(
+                data: cp.pagination,
+                isLoading: cp.isLoading,
+                onPageChanged: (page) =>
+                    ref.read(courseProvider.notifier).fetch(page: page),
+              ),
+            ]),
 
             // Internships Tab
             ip.isLoading

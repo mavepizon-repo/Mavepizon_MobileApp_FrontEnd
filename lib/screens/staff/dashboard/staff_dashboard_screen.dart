@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/pagination_data.dart';
 import '../../../core/utils/storage_helper.dart';
 import '../../../core/utils/string_utils.dart';
 import '../../../providers/staff_task_provider.dart';
@@ -58,40 +59,63 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
     return '';
   }
 
-  String _resolveDesignation(StaffProfileProvider profP, List<dynamic> tasks) {
-    if (profP.role.isNotEmpty) return profP.role;
-    if (profP.category.isNotEmpty) return profP.category;
-    final fromTasks = _staffRoleFromTasks(tasks);
-    if (fromTasks.isNotEmpty) return fromTasks;
-    if (_category.isNotEmpty) return _category;
-    return _role;
+  /// Normalises a category/role string: trims, uppercases and rejects the
+  /// backend's literal `"null"` (and other "empty-looking" values) so they
+  /// fall through to the generic Office Staff layout instead of blocking the
+  /// role-specific dashboards.
+  String _normaliseKey(String v) {
+    final s = v.trim().toUpperCase();
+    if (s.isEmpty || s == 'NULL' || s == 'NONE' || s == 'N/A') return '';
+    return s;
   }
 
-  /// Best-effort role/category key used to route to the correct dashboard.
-  /// The backend exposes the staff category via the task's `staffRole`
-  /// (populated from `staff.getCategory()`), so that is the most reliable
-  /// source; login/profile return only the generic "OFFICE_STAFF" role.
+  bool _isSpecialRole(String key) {
+    return key == 'TELECOM_SERVICE' ||
+        key == 'DEVELOPER_TRAINER' ||
+        key == 'DEVELOPER' ||
+        key == 'DESIGNER' ||
+        key == 'FREELANCER';
+  }
+
+  /// Resolves the staff's role key used to pick which dashboard to render.
+  /// Priority: stored login category (the backend returns `staff.getCategory()`
+  /// at login) → profile category → task `staffRole` → profile role. Unknown /
+  /// blank / literal-"null" values resolve to `''` → generic Office Staff grid.
   String _staffRoleKey(StaffProfileProvider profP, List<dynamic> tasks) {
-    final fromTasks = _staffRoleFromTasks(tasks).trim().toUpperCase();
-    if (fromTasks == 'TELECOM_SERVICE' ||
-        fromTasks == 'DEVELOPER_TRAINER' ||
-        fromTasks == 'DEVELOPER' ||
-        fromTasks == 'DESIGNER' ||
-        fromTasks == 'FREELANCER') {
-      return fromTasks;
+    final stored = _normaliseKey(_category);
+    if (stored.isNotEmpty) return stored;
+    final fromProfile = _normaliseKey(profP.category);
+    if (fromProfile.isNotEmpty) return fromProfile;
+    final fromTasks = _normaliseKey(_staffRoleFromTasks(tasks));
+    if (_isSpecialRole(fromTasks)) return fromTasks;
+    final fromProfileRole = _normaliseKey(profP.role);
+    if (_isSpecialRole(fromProfileRole)) return fromProfileRole;
+    return '';
+  }
+
+  String _friendlyRole(String key) {
+    switch (key) {
+      case 'TELECOM_SERVICE':
+        return 'Telecom Service';
+      case 'DEVELOPER_TRAINER':
+        return 'Developer Trainer';
+      case 'DEVELOPER':
+        return 'Developer';
+      case 'DESIGNER':
+        return 'Designer';
+      case 'FREELANCER':
+        return 'Freelancer';
+      default:
+        return 'Office Staff';
     }
-    if (profP.category.trim().isNotEmpty) return profP.category;
-    if (_category.trim().isNotEmpty) return _category;
-    final r = profP.role.trim().toUpperCase();
-    if (r == 'TELECOM_SERVICE' ||
-        r == 'DEVELOPER_TRAINER' ||
-        r == 'DEVELOPER' ||
-        r == 'DESIGNER' ||
-        r == 'FREELANCER') {
-      return r;
-    }
-    if (fromTasks.isNotEmpty) return fromTasks;
-    return _role;
+  }
+
+  String _resolveDesignation(StaffProfileProvider profP, List<dynamic> tasks) {
+    final key = _staffRoleKey(profP, tasks);
+    if (key.isNotEmpty) return _friendlyRole(key);
+    final role = profP.role.trim();
+    if (role.isNotEmpty) return role;
+    return _role.isNotEmpty ? _role : 'Office Staff';
   }
 
   Future<void> _load() async {
@@ -111,10 +135,11 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
         setState(() => _name = realName);
       }
       try {
-        final enquiries = await TelecallerService.getEnquiries(_staffId);
-        if (enquiries['success'] == true && enquiries['data'] is List) {
-          final list = enquiries['data'] as List;
-          _enquiryCount = list.length;
+        final enquiries = await TelecallerService.getEnquiries(_staffId, size: 500);
+        if (enquiries['success'] == true) {
+          final pageData = PaginationData.parse(enquiries['data']);
+          final list = pageData.content;
+          _enquiryCount = pageData.totalElements;
           _newContacts = list
               .where((e) =>
                   (e['status']?.toString().toUpperCase() ?? '') == 'NEW')
@@ -127,9 +152,10 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
       } catch (e) {
         debugPrint('Telecaller dashboard counts failed: $e');
       }
-      final roleFromTasks =
-          _staffRoleFromTasks(ref.read(staffTaskProvider).tasks);
-      if (roleFromTasks == 'DEVELOPER_TRAINER') {
+      final resolvedRole =
+          _staffRoleKey(
+              ref.read(staffProfileProvider), ref.read(staffTaskProvider).tasks);
+      if (resolvedRole == 'DEVELOPER_TRAINER') {
         ref.read(trainerProvider.notifier).fetchDashboard(_staffId);
         try {
           final result = await TrainerService.getBatches(_staffId);
@@ -142,7 +168,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
         }
         if (mounted) setState(() {});
       }
-      if (_category.toUpperCase() == 'DESIGNER') {
+      if (resolvedRole == 'DESIGNER') {
         try {
           final allResult = await CertificateService.getAllRegistrations();
           if (allResult['success'] == true && allResult['data'] is List) {
@@ -180,14 +206,9 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen> {
 
     final designation = _resolveDesignation(profP, taskP.tasks);
     final roleKey = _staffRoleKey(profP, taskP.tasks).toUpperCase();
-    final isTrainer = roleKey == 'DEVELOPER_TRAINER' ||
-        _category.toUpperCase() == 'DEVELOPER_TRAINER';
-    final isTelecaller = roleKey == 'TELECOM_SERVICE' ||
-        _category.toUpperCase() == 'TELECOM_SERVICE' ||
-        _role.toUpperCase() == 'TELECOM_SERVICE';
-    final isDesigner = roleKey == 'DESIGNER' ||
-        _category.toUpperCase() == 'DESIGNER' ||
-        _role.toUpperCase() == 'DESIGNER';
+    final isTrainer = roleKey == 'DEVELOPER_TRAINER';
+    final isTelecaller = roleKey == 'TELECOM_SERVICE';
+    final isDesigner = roleKey == 'DESIGNER';
     final isCheckedIn = attP.isCheckedIn;
 
     return Scaffold(

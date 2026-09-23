@@ -6,8 +6,7 @@ class CollegeStaffService {
   CollegeStaffService._();
 
   static Future<Map<String, dynamic>> getProfile() async {
-    final id = await StorageHelper.getCollegeStaffId();
-    return ApiClient.get('/api/collegestaff/$id/profile');
+    return ApiClient.get('/api/collegestaff/profile');
   }
 
   static Future<Map<String, dynamic>> getMyFiles() async {

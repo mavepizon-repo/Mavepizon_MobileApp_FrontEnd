@@ -27,7 +27,8 @@ class _AdminAssignTaskScreenState extends ConsumerState<AdminAssignTaskScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => ref.read(adminStaffProvider.notifier).fetch());
+    Future.microtask(
+        () => ref.read(adminStaffProvider.notifier).fetch(size: 100));
   }
 
   @override

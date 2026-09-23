@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/pagination_data.dart';
 import '../../../core/utils/storage_helper.dart';
 import '../../../services/telecaller_service.dart';
 import '../../../services/telecalling_call_service.dart';
 import '../../../widgets/call_button.dart';
+import '../../../widgets/pagination_bar.dart';
 
 class StaffTelecallerFollowupsScreen extends ConsumerStatefulWidget {
   const StaffTelecallerFollowupsScreen({super.key});
@@ -18,6 +20,7 @@ class _StaffTelecallerFollowupsScreenState
     extends ConsumerState<StaffTelecallerFollowupsScreen> {
   String _staffId = '';
   List<dynamic> _followups = [];
+  PaginationData _paged = const PaginationData();
   bool _loading = true;
   int _tabIndex = 0;
 
@@ -88,16 +91,24 @@ class _StaffTelecallerFollowupsScreenState
     if (d != null) setState(() => _selectedDate = d);
   }
 
-  Future<void> _load() async {
+  Future<void> _load({int page = 0}) async {
     setState(() => _loading = true);
     try {
       final result = _tabIndex == 0
           ? await TelecallerService.getTodayFollowups(_staffId)
-          : await TelecallerService.getCustomFollowups(_staffId);
+          : await TelecallerService.getCustomFollowups(_staffId,
+              page: page);
       if (result['success'] == true) {
         final data = result['data'];
-        if (data is List) _followups = data;
-        else _followups = [];
+        if (_tabIndex == 0) {
+          _paged = const PaginationData();
+          if (data is List) _followups = data;
+          else _followups = [];
+        } else {
+          final paged = PaginationData.parse(data);
+          _paged = paged;
+          _followups = paged.content;
+        }
       } else {
         _followups = [];
       }
@@ -293,6 +304,12 @@ class _StaffTelecallerFollowupsScreenState
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
               child: _FollowupCard(f: f),
             )),
+      if (_tabIndex == 1 && _paged.totalElements > 0)
+        PaginationBar(
+          data: _paged,
+          isLoading: _loading,
+          onPageChanged: (page) => _load(page: page),
+        ),
     ]);
   }
 
@@ -322,7 +339,7 @@ class _StaffTelecallerFollowupsScreenState
       body: Column(children: [
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _load,
+            onRefresh: () => _load(),
             color: AppColors.accent,
             child: CustomScrollView(
               slivers: [

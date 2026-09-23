@@ -11,9 +11,13 @@ class AdminCourseManagementService {
     return ApiClient.post('/api/course/create', data);
   }
 
-  // GET /api/course/get-all
-  static Future<Map<String, dynamic>> getAllOfferedCourses() {
-    return ApiClient.get('/api/course/get-all');
+  // GET /api/course/get-all (paginated)
+  static Future<Map<String, dynamic>> getAllOfferedCourses(
+      {int page = 0, int size = 20}) {
+    return ApiClient.get(
+      '/api/course/get-all',
+      queryParams: {'page': '$page', 'size': '$size'},
+    );
   }
 
   // GET /api/course/get/id/{id}

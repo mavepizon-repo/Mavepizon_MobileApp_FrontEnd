@@ -3,8 +3,18 @@ import '../core/network/api_client.dart';
 class AdminStaffService {
   AdminStaffService._();
 
-  static Future<Map<String, dynamic>> getAll() {
-    return ApiClient.get('/api/admin/staff');
+  static Future<Map<String, dynamic>> getAll({
+    int page = 0,
+    int size = 20,
+    String sort = 'id',
+    String direction = 'asc',
+  }) {
+    return ApiClient.get('/api/admin/staff', queryParams: {
+      'page': '$page',
+      'size': '$size',
+      'sort': sort,
+      'direction': direction,
+    });
   }
 
   static Future<Map<String, dynamic>> getById(String id) {
@@ -37,5 +47,18 @@ class AdminStaffService {
 
   static Future<Map<String, dynamic>> approveStaff(String staffId) {
     return ApiClient.patch('/api/admin/staff/$staffId/approve', {});
+  }
+
+  /// Soft-delete fallback. The backend refuses to hard-delete a staff member
+  /// that still has attendance / telecalling / other dependent records (FK
+  /// constraint -> 500), and there is no backend endpoint to purge those, so
+  /// the frontend deactivates the staff via the existing status endpoint
+  /// instead. Deactivated staff are hidden from the Admin Staff Monitoring
+  /// list (with the "Show inactive" toggle still available).
+  static Future<Map<String, dynamic>> setStatus(String id, bool active) {
+    return ApiClient.patch(
+      '/api/staff/$id/status?active=${active ? 'true' : 'false'}',
+      <String, dynamic>{},
+    );
   }
 }

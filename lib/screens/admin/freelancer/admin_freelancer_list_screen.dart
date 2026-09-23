@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../providers/admin_freelancer_provider.dart';
 import '../../../routes/app_routes.dart';
+import '../../../widgets/pagination_bar.dart';
 
 class AdminFreelancerListScreen extends ConsumerStatefulWidget {
   const AdminFreelancerListScreen({super.key});
@@ -56,7 +57,7 @@ class _AdminFreelancerListScreenState
             icon: const Icon(Icons.add_rounded),
             onPressed: () =>
                 Navigator.pushNamed(context, AppRoutes.adminFreelancerCreate)
-                    .then((_) => p.fetch()),
+                    .then((_) => p.refresh()),
           ),
         ],
       ),
@@ -100,7 +101,7 @@ class _AdminFreelancerListScreenState
                               style: TextStyle(color: AppColors.textHi(context))))
                       : RefreshIndicator(
                           onRefresh: () =>
-                              ref.read(adminFreelancerProvider.notifier).fetch(),
+                              ref.read(adminFreelancerProvider.notifier).refresh(),
                           color: AppColors.accent,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
@@ -182,7 +183,7 @@ class _AdminFreelancerListScreenState
                                             AppRoutes.adminFreelancerEdit,
                                             arguments: {'id': f.id},
                                           )
-                                              .then((_) => p.fetch()),
+                                              .then((_) => p.refresh()),
                                           visualDensity:
                                               VisualDensity.compact,
                                         ),
@@ -274,6 +275,12 @@ class _AdminFreelancerListScreenState
                             },
                           ),
                         ),
+        ),
+        PaginationBar(
+          data: p.pagination,
+          isLoading: p.isLoading,
+          onPageChanged: (page) =>
+              ref.read(adminFreelancerProvider.notifier).fetch(page: page),
         ),
       ]),
     );

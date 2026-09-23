@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../models/staff_model.dart';
 import '../../../providers/admin_staff_provider.dart';
 import '../../../routes/app_routes.dart';
+import '../../../widgets/pagination_bar.dart';
 import '../../../widgets/status_badge.dart';
 
 class AdminStaffListScreen extends ConsumerStatefulWidget {
@@ -15,8 +17,8 @@ class AdminStaffListScreen extends ConsumerStatefulWidget {
 class _AdminStaffListScreenState extends ConsumerState<AdminStaffListScreen> {
   final _searchCtrl = TextEditingController();
   String _roleFilter = '';
-  String _monthFilter = '';
   String _branchFilter = '';
+  bool _showInactive = false;
 
   @override
   void initState() {
@@ -36,18 +38,6 @@ class _AdminStaffListScreenState extends ConsumerState<AdminStaffListScreen> {
   List<String> get _roles =>
       ['DEVELOPER', 'DEVELOPER_TRAINER', 'TELECOM_SERVICE', 'DESIGNER', 'FREELANCER'];
 
-  List<String> get _months {
-    final all = ref.read(adminStaffProvider).list;
-    final months = all
-        .map((s) =>
-            s.joiningDate.length >= 7 ? s.joiningDate.substring(0, 7) : '')
-        .where((m) => m.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-    return months;
-  }
-
   @override
   Widget build(BuildContext context) {
     final p = ref.watch(adminStaffProvider);
@@ -60,13 +50,10 @@ class _AdminStaffListScreenState extends ConsumerState<AdminStaffListScreen> {
           !s.role.toLowerCase().contains(_roleFilter.toLowerCase()) &&
           !s.category.toLowerCase().contains(_roleFilter.toLowerCase()))
         return false;
-      if (_monthFilter.isNotEmpty) {
-        final jd = s.joiningDate;
-        if (jd.length >= 7 && jd.substring(0, 7) != _monthFilter) return false;
-      }
       if (_branchFilter.isNotEmpty &&
           !s.branch.toUpperCase().contains(_branchFilter))
         return false;
+      if (!_showInactive && s.status.toUpperCase() == 'INACTIVE') return false;
       return true;
     }).toList();
 
@@ -83,7 +70,7 @@ class _AdminStaffListScreenState extends ConsumerState<AdminStaffListScreen> {
             icon: const Icon(Icons.add_rounded),
             onPressed: () =>
                 Navigator.pushNamed(context, AppRoutes.adminStaffCreate)
-                    .then((_) => p.fetch()),
+                    .then((_) => p.refresh()),
           ),
           IconButton(
             icon: const Icon(Icons.pending_actions_rounded),
@@ -142,12 +129,10 @@ class _AdminStaffListScreenState extends ConsumerState<AdminStaffListScreen> {
                     setState(() => _branchFilter = v);
                   })),
               const SizedBox(width: 8),
-              _FilterChip(context, 'Any Month', '', _monthFilter, (v) {
-                setState(() => _monthFilter = v);
+              _FilterChip(context, 'Show inactive', 'show',
+                  _showInactive ? 'show' : '', (v) {
+                setState(() => _showInactive = v == 'show');
               }),
-              ..._months.map((m) => _FilterChip(context, m, m, _monthFilter, (v) {
-                    setState(() => _monthFilter = v);
-                  })),
             ]),
           ),
         ),
@@ -164,7 +149,7 @@ class _AdminStaffListScreenState extends ConsumerState<AdminStaffListScreen> {
                               style:
                                   TextStyle(color: AppColors.textHi(context))))
                       : RefreshIndicator(
-                          onRefresh: () => p.fetch(),
+                          onRefresh: () => p.refresh(),
                           color: AppColors.accent,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
@@ -295,7 +280,7 @@ class _AdminStaffListScreenState extends ConsumerState<AdminStaffListScreen> {
                                                     AppRoutes.adminStaffEdit,
                                                     arguments: {'staffId': s.id},
                                                   )
-                                                      .then((_) => p.fetch()),
+                                                      .then((_) => p.refresh()),
                                               visualDensity:
                                                   VisualDensity.compact,
                                             ),
@@ -326,20 +311,34 @@ class _AdminStaffListScreenState extends ConsumerState<AdminStaffListScreen> {
                                                   ),
                                                 );
                                                 if (ok == true) {
-                                                  final deleted = await ref
-                                                      .read(adminStaffProvider.notifier)
-                                                      .delete(s.id);
+                                                  final prov = ref
+                                                      .read(adminStaffProvider.notifier);
+                                                  final deleted =
+                                                      await prov.delete(s.id);
+                                                  if (!mounted) return;
+                                                  if (deleted) {
+                                                    ScaffoldMessenger.of(context)
+                                                        .showSnackBar(SnackBar(
+                                                      content:
+                                                          const Text('Staff deleted'),
+                                                      backgroundColor:
+                                                          AppColors.success,
+                                                    ));
+                                                    return;
+                                                  }
                                                   final err = ref
-                                                      .read(adminStaffProvider)
-                                                      .error;
+                                                          .read(adminStaffProvider)
+                                                          .error ??
+                                                      'Failed to delete staff';
+                                                  final deactivated =
+                                                      await _offerDeactivate(s, err);
                                                   if (!mounted) return;
                                                   ScaffoldMessenger.of(context)
                                                       .showSnackBar(SnackBar(
-                                                    content: Text(deleted
-                                                        ? 'Staff deleted'
-                                                        : (err ??
-                                                            'Failed to delete staff')),
-                                                    backgroundColor: deleted
+                                                    content: Text(deactivated
+                                                        ? 'Staff deactivated — removed from the active list'
+                                                        : err),
+                                                    backgroundColor: deactivated
                                                         ? AppColors.success
                                                         : AppColors.error,
                                                   ));
@@ -355,8 +354,45 @@ class _AdminStaffListScreenState extends ConsumerState<AdminStaffListScreen> {
                           ),
                         ),
         ),
+        PaginationBar(
+          data: p.pagination,
+          isLoading: p.isLoading,
+          onPageChanged: (page) =>
+              ref.read(adminStaffProvider.notifier).fetch(page: page),
+        ),
       ]),
     );
+  }
+
+  /// Fallback when the hard delete fails with the backend FK constraint
+  /// ("An unexpected system anomaly occurred: ..."). The server has no way to
+  /// purge the staff's attendance / telecalling / other dependent records, so
+  /// offer to deactivate instead, which hides them from the active list.
+  Future<bool> _offerDeactivate(StaffModel s, String err) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Could not delete'),
+        content: Text(
+          '"${s.name}" has saved records (attendance, calls, tasks, etc.) that '
+          'the server cannot auto-delete, so a permanent delete failed.\n\n'
+          'Deactivate them instead? They will be hidden from the Staff '
+          'Monitoring list.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Deactivate'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return false;
+    return ref.read(adminStaffProvider.notifier).deactivate(s.id);
   }
 
   void _showPendingApprovals() async {

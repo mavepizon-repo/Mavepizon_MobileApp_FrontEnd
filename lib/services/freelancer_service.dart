@@ -170,8 +170,18 @@ class FreelancerService {
   }
 
   // ─── ADMIN: GET ALL ────────────────────────────────────────────
-  static Future<Map<String, dynamic>> getAll() {
-    return ApiClient.get('/api/admin/freelancers/get-all');
+  static Future<Map<String, dynamic>> getAll({
+    int page = 0,
+    int size = 20,
+    String sort = 'id',
+    String direction = 'asc',
+  }) {
+    return ApiClient.get('/api/admin/freelancers/get-all', queryParams: {
+      'page': '$page',
+      'size': '$size',
+      'sort': sort,
+      'direction': direction,
+    });
   }
 
   // ─── ADMIN: DELETE ─────────────────────────────────────────────

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../providers/course_provider.dart';
 import '../../../routes/app_routes.dart';
+import '../../../widgets/pagination_bar.dart';
 import '../../../widgets/status_badge.dart';
 
 class AdminCourseListScreen extends ConsumerStatefulWidget {
@@ -142,7 +143,7 @@ class _AdminCourseListScreenState extends ConsumerState<AdminCourseListScreen> {
                           child: Text('No courses',
                               style: TextStyle(color: AppColors.textHi(context))))
                       : RefreshIndicator(
-                          onRefresh: () => p.fetch(),
+                          onRefresh: () => p.refresh(),
                           color: AppColors.accent,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
@@ -281,6 +282,12 @@ class _AdminCourseListScreenState extends ConsumerState<AdminCourseListScreen> {
                             },
                           ),
                         ),
+        ),
+        PaginationBar(
+          data: p.pagination,
+          isLoading: p.isLoading,
+          onPageChanged: (page) =>
+              ref.read(courseProvider.notifier).fetch(page: page),
         ),
       ]),
     );

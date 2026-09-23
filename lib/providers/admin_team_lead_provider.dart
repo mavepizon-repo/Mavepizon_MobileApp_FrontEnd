@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/utils/pagination_data.dart';
 import '../models/team_lead_model.dart';
 import '../services/admin_team_lead_service.dart';
 
@@ -9,23 +10,36 @@ class AdminTeamLeadProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
+  int currentPage = 0;
+  int totalPages = 1;
+  int totalElements = 0;
+  int pageSize = 20;
+
   List<TeamLeadModel> get list => _list;
   TeamLeadModel? get selected => _selected;
+  PaginationData get pagination => PaginationData(
+        page: currentPage,
+        totalPages: totalPages,
+        totalElements: totalElements,
+        size: pageSize,
+      );
 
-  Future<void> fetch() async {
+  Future<void> fetch({int page = 0, int size = 20}) async {
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
-      final result = await AdminTeamLeadService.getAll();
+      final result = await AdminTeamLeadService.getAll(page: page, size: size);
       if (result['success'] == true) {
-        final data = result['data'];
-        if (data is List) {
-          _list = data.map((e) => TeamLeadModel.fromJson(e)).toList();
-        } else {
-          _list = [];
-        }
+        final pageData = PaginationData.parse(result['data']);
+        _list = pageData
+            .map<TeamLeadModel>((e) => TeamLeadModel.fromJson(e))
+            .toList();
+        currentPage = pageData.page;
+        totalPages = pageData.totalPages;
+        totalElements = pageData.totalElements;
+        if (pageData.size > 0) pageSize = pageData.size;
       } else {
         error = result['message'] ?? 'Failed to load team leads';
       }
@@ -36,6 +50,8 @@ class AdminTeamLeadProvider extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
   }
+
+  Future<void> refresh() => fetch(page: currentPage, size: pageSize);
 
   Future<void> fetchById(String id) async {
     isLoading = true;
@@ -67,7 +83,7 @@ class AdminTeamLeadProvider extends ChangeNotifier {
       if (result['success'] == true) {
         isLoading = false;
         notifyListeners();
-        await fetch();
+        await refresh();
         return true;
       } else {
         error = result['message'] ?? 'Failed to create';
@@ -106,7 +122,7 @@ class AdminTeamLeadProvider extends ChangeNotifier {
     try {
       final result = await AdminTeamLeadService.toggleStatus(id, active);
       if (result['success'] == true) {
-        await fetch();
+        await refresh();
         return true;
       } else {
         error = result['message'] ?? 'Failed to toggle status';
@@ -126,7 +142,10 @@ class AdminTeamLeadProvider extends ChangeNotifier {
     try {
       final result = await AdminTeamLeadService.delete(id);
       if (result['success'] == true) {
-        _list.removeWhere((t) => t.id.toString() == id);
+        await refresh();
+        if (_list.isEmpty && currentPage > 0) {
+          await fetch(page: currentPage - 1, size: pageSize);
+        }
         isLoading = false;
         notifyListeners();
         return true;

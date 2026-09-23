@@ -29,6 +29,8 @@ class TeamLeadModel {
   final String? dob;
   final String? nativePlace;
   final String? yearPassedOut;
+  final String shiftStart;
+  final String shiftEnd;
 
   TeamLeadModel({
     required this.id,
@@ -61,6 +63,8 @@ class TeamLeadModel {
     this.dob,
     this.nativePlace,
     this.yearPassedOut,
+    this.shiftStart = '',
+    this.shiftEnd = '',
   });
 
   factory TeamLeadModel.fromJson(Map<String, dynamic> j) {
@@ -102,6 +106,8 @@ class TeamLeadModel {
       totalPendingTasks: j['totalPendingTasks'] ?? 0,
       createdAt: j['createdAt']?.toString() ?? '',
       updatedAt: j['updatedAt']?.toString() ?? '',
+      shiftStart: j['shiftStart']?.toString() ?? '',
+      shiftEnd: j['shiftEnd']?.toString() ?? '',
     );
   }
 

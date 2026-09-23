@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/pagination_data.dart';
 import '../../../core/utils/storage_helper.dart';
 import '../../../services/telecaller_service.dart';
 import '../../../services/telecalling_call_service.dart';
 import '../../../routes/app_routes.dart';
 import '../../../widgets/call_button.dart';
+import '../../../widgets/pagination_bar.dart';
 
 class StaffTelecallerEnquiriesScreen extends ConsumerStatefulWidget {
   const StaffTelecallerEnquiriesScreen({super.key});
@@ -19,6 +21,7 @@ class _StaffTelecallerEnquiriesScreenState
     extends ConsumerState<StaffTelecallerEnquiriesScreen> {
   String _staffId = '';
   List<dynamic> _enquiries = [];
+  PaginationData _paged = const PaginationData();
   bool _loading = true;
 
   final _collegeCtrl = TextEditingController();
@@ -40,13 +43,18 @@ class _StaffTelecallerEnquiriesScreenState
     if (mounted && _staffId.isNotEmpty) await _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({int page = 0}) async {
     setState(() => _loading = true);
     try {
-      final result = await TelecallerService.getEnquiries(_staffId);
+      final result =
+          await TelecallerService.getEnquiries(_staffId, page: page);
       if (result['success'] == true) {
         final data = result['data'];
-        if (data is List) _enquiries = data;
+        if (data != null) {
+          final paged = PaginationData.parse(data);
+          _paged = paged;
+          _enquiries = paged.content;
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -411,7 +419,7 @@ class _StaffTelecallerEnquiriesScreenState
         ),
         Expanded(
           child: RefreshIndicator(
-            onRefresh: _load,
+            onRefresh: () => _load(),
             color: AppColors.accent,
             child: _loading
                 ? const Center(
@@ -542,6 +550,12 @@ class _StaffTelecallerEnquiriesScreenState
                       ),
           ),
         ),
+        if (_paged.totalElements > 0)
+          PaginationBar(
+            data: _paged,
+            isLoading: _loading,
+            onPageChanged: (page) => _load(page: page),
+          ),
       ]),
     );
   }

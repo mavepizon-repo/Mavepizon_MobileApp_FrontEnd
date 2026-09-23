@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../providers/admin_student_provider.dart';
 import '../../../routes/app_routes.dart';
+import '../../../widgets/pagination_bar.dart';
 
 class AdminStudentListScreen extends ConsumerStatefulWidget {
   const AdminStudentListScreen({super.key});
@@ -13,8 +15,7 @@ class AdminStudentListScreen extends ConsumerStatefulWidget {
 
 class _AdminStudentListScreenState extends ConsumerState<AdminStudentListScreen> {
   final _searchCtrl = TextEditingController();
-  String _collegeFilter = '';
-  String _deptFilter = '';
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -24,40 +25,34 @@ class _AdminStudentListScreenState extends ConsumerState<AdminStudentListScreen>
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  List<String> get _colleges {
-    final all = ref.read(adminStudentProvider).students;
-    return all.map((s) => s.collegeName).where((c) => c.isNotEmpty).toSet().toList()..sort();
+  void _onSearchChanged(String value) {
+    setState(() {});
+    final prov = ref.read(adminStudentProvider.notifier);
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 400), () {
+      prov.setSearchQuery(value);
+      prov.fetchAll(search: value.trim());
+    });
   }
 
-  List<String> get _departments {
-    final all = ref.read(adminStudentProvider).students;
-    return all.map((s) => s.department).where((d) => d.isNotEmpty).toSet().toList()..sort();
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchCtrl.clear();
+    final prov = ref.read(adminStudentProvider.notifier);
+    prov.setSearchQuery('');
+    prov.fetchAll();
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     final p = ref.watch(adminStudentProvider);
     final students = p.students;
-
-    var filtered = students.where((s) {
-      final q = _searchCtrl.text.toLowerCase();
-      if (q.isNotEmpty &&
-          !s.fullName.toLowerCase().contains(q) &&
-          !s.email.toLowerCase().contains(q) &&
-          !s.studentId.toLowerCase().contains(q))
-        return false;
-      if (_collegeFilter.isNotEmpty &&
-          !s.collegeName.toLowerCase().contains(_collegeFilter.toLowerCase()))
-        return false;
-      if (_deptFilter.isNotEmpty &&
-          !s.department.toLowerCase().contains(_deptFilter.toLowerCase()))
-        return false;
-      return true;
-    }).toList();
 
     return Scaffold(
       
@@ -75,7 +70,7 @@ class _AdminStudentListScreenState extends ConsumerState<AdminStudentListScreen>
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: TextField(
             controller: _searchCtrl,
-            onChanged: (_) => setState(() {}),
+            onChanged: _onSearchChanged,
             decoration: InputDecoration(
               hintText: 'Search by name, email, or student ID...',
               prefixIcon:
@@ -89,45 +84,16 @@ class _AdminStudentListScreenState extends ConsumerState<AdminStudentListScreen>
               suffixIcon: _searchCtrl.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, size: 18),
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        setState(() {});
-                      })
+                      onPressed: _clearSearch)
                   : null,
             ),
-          ),
-        ),
-        // Filters
-        Container(
-          color: Theme.of(context).colorScheme.surface,
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(children: [
-              _FilterChip(context, 'All Colleges', '', _collegeFilter, (v) {
-                setState(() => _collegeFilter = v);
-              }),
-              ..._colleges.take(10).map((c) =>
-                  _FilterChip(context, c.length > 15 ? '${c.substring(0, 15)}..' : c,
-                      c, _collegeFilter, (v) {
-                    setState(() => _collegeFilter = v);
-                  })),
-              const SizedBox(width: 8),
-              _FilterChip(context, 'All Depts', '', _deptFilter, (v) {
-                setState(() => _deptFilter = v);
-              }),
-              ..._departments.take(10).map((d) =>
-                  _FilterChip(context, d, d, _deptFilter, (v) {
-                    setState(() => _deptFilter = v);
-                  })),
-            ]),
           ),
         ),
         // Count
         Container(
           color: Theme.of(context).colorScheme.surface,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Text('${filtered.length} students',
+          child: Text('${p.totalElements} students',
               style:
                   TextStyle(fontSize: 12, color: AppColors.textHi(context))),
         ),
@@ -138,19 +104,19 @@ class _AdminStudentListScreenState extends ConsumerState<AdminStudentListScreen>
                   child: CircularProgressIndicator(color: AppColors.accent))
               : p.error != null
                   ? Center(child: Text(p.error!))
-                  : filtered.isEmpty
+                  : students.isEmpty
                       ? Center(
                           child: Text('No students found',
                               style:
                                   TextStyle(color: AppColors.textHi(context))))
                       : RefreshIndicator(
-                          onRefresh: () => p.fetchAll(),
+                          onRefresh: () => p.refresh(),
                           color: AppColors.accent,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
-                            itemCount: filtered.length,
+                            itemCount: students.length,
                             itemBuilder: (_, i) {
-                              final s = filtered[i];
+                              final s = students[i];
                               return GestureDetector(
                                 onTap: () => Navigator.pushNamed(
                                     context, AppRoutes.adminStudentDetail,
@@ -252,6 +218,13 @@ class _AdminStudentListScreenState extends ConsumerState<AdminStudentListScreen>
                             },
                           ),
                         ),
+        ),
+        PaginationBar(
+          data: p.pagination,
+          isLoading: p.isLoading,
+          onPageChanged: (page) => ref
+              .read(adminStudentProvider.notifier)
+              .fetchAll(page: page, search: p.searchQuery),
         ),
       ]),
     );

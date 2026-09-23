@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/pagination_data.dart';
 import '../../../providers/course_provider.dart';
 import '../../../providers/internship_provider.dart';
 import '../../../providers/student_provider.dart';
@@ -9,6 +10,7 @@ import '../../../services/student_course_service.dart';
 import '../../../widgets/loading_widget.dart';
 import '../../../widgets/empty_widget.dart';
 import '../../../widgets/status_badge.dart';
+import '../../../widgets/pagination_bar.dart';
 
 class TlStudentMonitorScreen extends ConsumerStatefulWidget {
   const TlStudentMonitorScreen({super.key});
@@ -334,7 +336,7 @@ class _TlStudentMonitorScreenState extends ConsumerState<TlStudentMonitorScreen>
                 decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20)),
-                child: Text('${allStudents.length} total',
+                child: Text('${sp.pagination.totalElements} total',
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 11,
@@ -386,6 +388,11 @@ class _TlStudentMonitorScreenState extends ConsumerState<TlStudentMonitorScreen>
                     onMonthTap: () => _pickMonth(true),
                     onClearFilters: _clearCourseFilters,
                     students: courseStudents,
+                    pagination: sp.pagination,
+                    isLoading: sp.isLoading,
+                    onPageChanged: (page) => ref
+                        .read(studentProvider.notifier)
+                        .fetchAll(page: page),
                   ),
 
                   // -- Internship Tab --------------------------
@@ -408,6 +415,11 @@ class _TlStudentMonitorScreenState extends ConsumerState<TlStudentMonitorScreen>
                     onMonthTap: () => _pickMonth(false),
                     onClearFilters: _clearIntFilters,
                     students: internshipStudents,
+                    pagination: sp.pagination,
+                    isLoading: sp.isLoading,
+                    onPageChanged: (page) => ref
+                        .read(studentProvider.notifier)
+                        .fetchAll(page: page),
                   ),
                 ]),
         ),
@@ -429,6 +441,9 @@ class _TlStudentMonitorScreenState extends ConsumerState<TlStudentMonitorScreen>
     required VoidCallback onMonthTap,
     required VoidCallback onClearFilters,
     required List<dynamic> students,
+    PaginationData pagination = const PaginationData(),
+    bool isLoading = false,
+    ValueChanged<int>? onPageChanged,
   }) {
     return Column(children: [
       // Filter section
@@ -547,7 +562,8 @@ class _TlStudentMonitorScreenState extends ConsumerState<TlStudentMonitorScreen>
             ? const EmptyWidget(
                 message: 'No students found', icon: Icons.people_outline)
             : RefreshIndicator(
-                onRefresh: () => ref.read(studentProvider.notifier).fetchAll(),
+                onRefresh: () =>
+                    ref.read(studentProvider.notifier).refresh(),
                 color: AppColors.accent,
                 child: ListView.separated(
                   padding: const EdgeInsets.all(16),
@@ -557,6 +573,12 @@ class _TlStudentMonitorScreenState extends ConsumerState<TlStudentMonitorScreen>
                 ),
               ),
       ),
+      if (onPageChanged != null)
+        PaginationBar(
+          data: pagination,
+          isLoading: isLoading,
+          onPageChanged: onPageChanged,
+        ),
     ]);
   }
 

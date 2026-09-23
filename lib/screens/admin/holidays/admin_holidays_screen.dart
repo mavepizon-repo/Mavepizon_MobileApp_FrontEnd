@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/pagination_data.dart';
 import '../../../services/admin_holiday_service.dart';
 import '../../../services/admin_staff_service.dart';
 import '../../../services/admin_team_lead_service.dart';
@@ -58,16 +59,18 @@ class _AdminHolidaysScreenState extends State<AdminHolidaysScreen> {
   Future<void> _loadLists() async {
     setState(() => _loadingLists = true);
     try {
-      final tlResult = await AdminTeamLeadService.getAll();
-      if (tlResult['success'] == true && tlResult['data'] is List) {
-        _teamLeads = (tlResult['data'] as List)
+      final tlResult = await AdminTeamLeadService.getAll(size: 500);
+      if (tlResult['success'] == true) {
+        _teamLeads = PaginationData.parse(tlResult['data'])
+            .content
             .map((e) => TeamLeadModel.fromJson(e))
             .where((t) => t.status == 'ACTIVE')
             .toList();
       }
-      final staffResult = await AdminStaffService.getAll();
-      if (staffResult['success'] == true && staffResult['data'] is List) {
-        _staffs = (staffResult['data'] as List)
+      final staffResult = await AdminStaffService.getAll(size: 500);
+      if (staffResult['success'] == true) {
+        _staffs = PaginationData.parse(staffResult['data'])
+            .content
             .map((e) => StaffModel.fromJson(e))
             .where((s) => s.status == 'ACTIVE')
             .toList();

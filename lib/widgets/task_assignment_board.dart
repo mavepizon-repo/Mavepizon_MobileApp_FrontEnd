@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
+import '../core/utils/pagination_data.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
 import '../services/freelancer_task_service.dart';
@@ -129,9 +130,9 @@ class _TaskAssignmentBoardState extends State<TaskAssignmentBoard> {
     final tlNames = <String>{};
     final tlIds = <String>{};
     try {
-      final tlRes = await AdminTeamLeadService.getAll();
-      if (tlRes['success'] == true && tlRes['data'] is List) {
-        for (final e in tlRes['data'] as List) {
+      final tlRes = await AdminTeamLeadService.getAll(size: 500);
+      if (tlRes['success'] == true) {
+        for (final e in PaginationData.parse(tlRes['data']).content) {
           final m = Map<String, dynamic>.from(e as Map);
           final id = m['id']?.toString() ?? '';
           final name = m['name']?.toString() ?? m['fullName']?.toString() ?? '';
@@ -144,9 +145,9 @@ class _TaskAssignmentBoardState extends State<TaskAssignmentBoard> {
     // Office staff id -> category (role) map.
     final staffRoles = <String, String>{};
     try {
-      final stRes = await AdminStaffService.getAll();
-      if (stRes['success'] == true && stRes['data'] is List) {
-        for (final e in stRes['data'] as List) {
+      final stRes = await AdminStaffService.getAll(size: 500);
+      if (stRes['success'] == true) {
+        for (final e in PaginationData.parse(stRes['data']).content) {
           final m = Map<String, dynamic>.from(e as Map);
           final id = m['id']?.toString() ?? '';
           final role = m['role']?.toString() ?? m['category']?.toString() ?? '';
@@ -183,9 +184,9 @@ class _TaskAssignmentBoardState extends State<TaskAssignmentBoard> {
     }
 
     // Freelancer tasks -> one row per freelancer.
-    final flRes = await FreelancerTaskService.getAll();
-    if (flRes['success'] == true && flRes['data'] is List) {
-      for (final e in flRes['data'] as List) {
+    final flRes = await FreelancerTaskService.getAll(size: 500);
+    if (flRes['success'] == true) {
+      for (final e in PaginationData.parse(flRes['data']).content) {
         final m = Map<String, dynamic>.from(e as Map);
         final names = (m['freelancerNames'] as List? ?? [])
             .map((n) => n.toString())

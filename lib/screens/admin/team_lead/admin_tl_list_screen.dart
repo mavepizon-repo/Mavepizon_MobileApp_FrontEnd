@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../providers/admin_team_lead_provider.dart';
 import '../../../routes/app_routes.dart';
+import '../../../widgets/pagination_bar.dart';
 import '../../../widgets/status_badge.dart';
 
 class AdminTlListScreen extends ConsumerStatefulWidget {
@@ -13,8 +14,6 @@ class AdminTlListScreen extends ConsumerStatefulWidget {
 
 class _AdminTlListScreenState extends ConsumerState<AdminTlListScreen> {
   final _searchCtrl = TextEditingController();
-  String _roleFilter = '';
-  String _monthFilter = '';
   String _branchFilter = '';
 
   @override
@@ -32,23 +31,6 @@ class _AdminTlListScreenState extends ConsumerState<AdminTlListScreen> {
   List<String> get _branches =>
       ['TIRUNELVELI', 'THISAYANVILAI', 'NAGERCOIL'];
 
-  List<String> get _roles {
-    final all = ref.read(adminTeamLeadProvider).list;
-    return all.map((t) => t.role).where((r) => r.isNotEmpty).toSet().toList()
-      ..sort();
-  }
-
-  List<String> get _months {
-    final all = ref.read(adminTeamLeadProvider).list;
-    final months = all
-        .map((t) => t.joiningDate.length >= 7 ? t.joiningDate.substring(0, 7) : '')
-        .where((m) => m.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-    return months;
-  }
-
   @override
   Widget build(BuildContext context) {
     final p = ref.watch(adminTeamLeadProvider);
@@ -57,12 +39,9 @@ class _AdminTlListScreenState extends ConsumerState<AdminTlListScreen> {
     var filtered = list.where((t) {
       final q = _searchCtrl.text.toLowerCase();
       if (q.isNotEmpty && !t.fullName.toLowerCase().contains(q)) return false;
-      if (_roleFilter.isNotEmpty && !t.role.toUpperCase().contains(_roleFilter)) return false;
-      if (_monthFilter.isNotEmpty) {
-        final jd = t.joiningDate;
-        if (jd.length >= 7 && jd.substring(0, 7) != _monthFilter) return false;
-      }
-      if (_branchFilter.isNotEmpty && !t.branchName.toUpperCase().contains(_branchFilter)) return false;
+      if (_branchFilter.isNotEmpty &&
+          !t.branchName.toUpperCase().contains(_branchFilter))
+        return false;
       return true;
     }).toList();
 
@@ -79,7 +58,7 @@ class _AdminTlListScreenState extends ConsumerState<AdminTlListScreen> {
             icon: const Icon(Icons.add_rounded),
             onPressed: () =>
                 Navigator.pushNamed(context, AppRoutes.adminCreateTl)
-                    .then((_) => p.fetch()),
+                    .then((_) => p.refresh()),
           ),
         ],
       ),
@@ -119,25 +98,11 @@ class _AdminTlListScreenState extends ConsumerState<AdminTlListScreen> {
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(children: [
-              _FilterChip(context, 'All Roles', '', _roleFilter, (v) {
-                setState(() => _roleFilter = v);
-              }),
-              ..._roles.map((r) => _FilterChip(context, r, r, _roleFilter, (v) {
-                    setState(() => _roleFilter = v);
-                  })),
-              const SizedBox(width: 8),
               _FilterChip(context, 'All Branches', '', _branchFilter, (v) {
                 setState(() => _branchFilter = v);
               }),
               ..._branches.map((b) => _FilterChip(context, b, b, _branchFilter, (v) {
                     setState(() => _branchFilter = v);
-                  })),
-              const SizedBox(width: 8),
-              _FilterChip(context, 'Any Month', '', _monthFilter, (v) {
-                setState(() => _monthFilter = v);
-              }),
-              ..._months.map((m) => _FilterChip(context, m, m, _monthFilter, (v) {
-                    setState(() => _monthFilter = v);
                   })),
             ]),
           ),
@@ -155,7 +120,7 @@ class _AdminTlListScreenState extends ConsumerState<AdminTlListScreen> {
                               style:
                                   TextStyle(color: AppColors.textHi(context))))
                       : RefreshIndicator(
-                          onRefresh: () => p.fetch(),
+                          onRefresh: () => p.refresh(),
                           color: AppColors.accent,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
@@ -288,7 +253,7 @@ class _AdminTlListScreenState extends ConsumerState<AdminTlListScreen> {
                                                     AppRoutes.adminTlDetail,
                                                     arguments: {'id': t.id},
                                                   )
-                                                      .then((_) => p.fetch()),
+                                                      .then((_) => p.refresh()),
                                               visualDensity: VisualDensity.compact,
                                             ),
                                             IconButton(
@@ -301,7 +266,7 @@ class _AdminTlListScreenState extends ConsumerState<AdminTlListScreen> {
                                                     AppRoutes.adminEditTl,
                                                     arguments: {'id': t.id},
                                                   )
-                                                      .then((_) => p.fetch()),
+                                                      .then((_) => p.refresh()),
                                               visualDensity: VisualDensity.compact,
                                             ),
                                             IconButton(
@@ -344,6 +309,12 @@ class _AdminTlListScreenState extends ConsumerState<AdminTlListScreen> {
                             },
                           ),
                         ),
+        ),
+        PaginationBar(
+          data: p.pagination,
+          isLoading: p.isLoading,
+          onPageChanged: (page) =>
+              ref.read(adminTeamLeadProvider.notifier).fetch(page: page),
         ),
       ]),
     );

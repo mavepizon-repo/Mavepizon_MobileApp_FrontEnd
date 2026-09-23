@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/utils/pagination_data.dart';
 import '../models/freelancer_model.dart';
 import '../services/freelancer_service.dart';
 
@@ -8,19 +9,33 @@ class AdminFreelancerProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
-  Future<void> fetch() async {
+  int currentPage = 0;
+  int totalPages = 1;
+  int totalElements = 0;
+  int pageSize = 20;
+
+  PaginationData get pagination => PaginationData(
+        page: currentPage,
+        totalPages: totalPages,
+        totalElements: totalElements,
+        size: pageSize,
+      );
+
+  Future<void> fetch({int page = 0, int size = 20}) async {
     isLoading = true;
     error = null;
     notifyListeners();
     try {
-      final result = await FreelancerService.getAll();
+      final result = await FreelancerService.getAll(page: page, size: size);
       if (result['success'] == true) {
-        final data = result['data'];
-        if (data is List) {
-          list = data.map((e) => FreelancerModel.fromJson(e)).toList();
-        } else {
-          list = [];
-        }
+        final pageData = PaginationData.parse(result['data']);
+        list = pageData
+            .map<FreelancerModel>((e) => FreelancerModel.fromJson(e))
+            .toList();
+        currentPage = pageData.page;
+        totalPages = pageData.totalPages;
+        totalElements = pageData.totalElements;
+        if (pageData.size > 0) pageSize = pageData.size;
       } else {
         error = result['message'] ?? 'Failed to load freelancers';
       }
@@ -31,10 +46,12 @@ class AdminFreelancerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refresh() => fetch(page: currentPage, size: pageSize);
+
   Future<bool> create(Map<String, dynamic> data) async {
     final result = await FreelancerService.create(data);
     if (result['success'] == true) {
-      await fetch();
+      await refresh();
       return true;
     }
     return false;
@@ -43,7 +60,7 @@ class AdminFreelancerProvider extends ChangeNotifier {
   Future<bool> update(String id, Map<String, dynamic> data) async {
     final result = await FreelancerService.update(id, data);
     if (result['success'] == true) {
-      await fetch();
+      await refresh();
       return true;
     }
     return false;
@@ -52,7 +69,10 @@ class AdminFreelancerProvider extends ChangeNotifier {
   Future<bool> delete(String id) async {
     final result = await FreelancerService.delete(id);
     if (result['success'] == true) {
-      await fetch();
+      await refresh();
+      if (list.isEmpty && currentPage > 0) {
+        await fetch(page: currentPage - 1, size: pageSize);
+      }
       return true;
     }
     return false;

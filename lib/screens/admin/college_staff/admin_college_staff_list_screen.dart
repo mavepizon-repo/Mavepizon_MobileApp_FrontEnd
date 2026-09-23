@@ -6,6 +6,7 @@ import '../../../models/college_staff_model.dart';
 import '../../../providers/admin_college_staff_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../services/admin_student_service.dart';
+import '../../../widgets/pagination_bar.dart';
 
 class AdminCollegeStaffListScreen extends ConsumerStatefulWidget {
   const AdminCollegeStaffListScreen({super.key});
@@ -17,8 +18,6 @@ class AdminCollegeStaffListScreen extends ConsumerStatefulWidget {
 class _AdminCollegeStaffListScreenState
     extends ConsumerState<AdminCollegeStaffListScreen> {
   final _searchCtrl = TextEditingController();
-  String _collegeFilter = '';
-  String _deptFilter = '';
 
   @override
   void initState() {
@@ -42,23 +41,8 @@ class _AdminCollegeStaffListScreenState
     ));
 
     try {
-      final result = await AdminStudentService.getAll();
-      if (result['success'] != true) {
-        messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(SnackBar(
-            content: Text(result['message']?.toString() ??
-                'Failed to load students')));
-        return;
-      }
-      final data = result['data'];
-      if (data is! List) {
-        messenger.hideCurrentSnackBar();
-        messenger.showSnackBar(
-            const SnackBar(content: Text('No students data found')));
-        return;
-      }
-
-      final rows = data.where((e) =>
+      final allRows = await _fetchAllStudents();
+      final rows = allRows.where((e) =>
           (e is Map && (e['collegeName']?.toString() ?? '')
                   .toLowerCase() ==
               staff.collegeName.toLowerCase()));
@@ -108,6 +92,34 @@ class _AdminCollegeStaffListScreenState
     }
   }
 
+  /// Loads every student via the paginated admin endpoint (100/page).
+  Future<List<dynamic>> _fetchAllStudents() async {
+    const perPage = 100;
+    final all = <dynamic>[];
+    var page = 0;
+    while (true) {
+      final result = await AdminStudentService.getAll(
+          page: page, size: perPage, sort: 'id', direction: 'asc');
+      if (result['success'] != true) {
+        throw Exception(result['message'] ?? 'Failed to load students');
+      }
+      final raw = result['data'];
+      final list = raw is List
+          ? raw
+          : (raw is Map && raw['content'] is List
+              ? (raw['content'] as List)
+              : <dynamic>[]);
+      all.addAll(list);
+      final total = raw is Map
+          ? ((raw['totalElements'] as num?)?.toInt() ?? 0)
+          : list.length;
+      if (list.length < perPage || (total > 0 && all.length >= total)) break;
+      page++;
+      if (page > 500) break;
+    }
+    return all;
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = ref.watch(adminCollegeStaffProvider);
@@ -116,21 +128,8 @@ class _AdminCollegeStaffListScreenState
     var filtered = list.where((s) {
       final q = _searchCtrl.text.toLowerCase();
       if (q.isNotEmpty && !s.name.toLowerCase().contains(q)) return false;
-      if (_collegeFilter.isNotEmpty &&
-          !s.collegeName
-              .toLowerCase()
-              .contains(_collegeFilter.toLowerCase()))
-        return false;
-      if (_deptFilter.isNotEmpty &&
-          !s.department.toLowerCase().contains(_deptFilter.toLowerCase()))
-        return false;
       return true;
     }).toList();
-
-    final colleges =
-        list.map((s) => s.collegeName).toSet().toList()..sort();
-    final departments =
-        list.map((s) => s.department).toSet().toList()..sort();
 
     return Scaffold(
       
@@ -175,30 +174,7 @@ class _AdminCollegeStaffListScreenState
             ),
           ),
         ),
-        Container(
-          color: Theme.of(context).colorScheme.surface,
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(children: [
-              _FilterChip(context, 'All Colleges', '', _collegeFilter, (v) {
-                setState(() => _collegeFilter = v);
-              }),
-              ...colleges.map((c) => _FilterChip(context, c, c, _collegeFilter, (v) {
-                    setState(() => _collegeFilter = v);
-                  })),
-              const SizedBox(width: 8),
-              _FilterChip(context, 'All Departments', '', _deptFilter, (v) {
-                setState(() => _deptFilter = v);
-              }),
-              ...departments.map(
-                  (d) => _FilterChip(context, d, d, _deptFilter, (v) {
-                        setState(() => _deptFilter = v);
-                      })),
-            ]),
-          ),
-        ),
-        Expanded(
+Expanded(
           child: p.isLoading
               ? const Center(
                   child: CircularProgressIndicator(color: AppColors.accent))
@@ -209,7 +185,7 @@ class _AdminCollegeStaffListScreenState
                           child: Text('No college staff found',
                               style: TextStyle(color: AppColors.textHi(context))))
                       : RefreshIndicator(
-                          onRefresh: () => p.fetch(),
+                          onRefresh: () => p.refresh(),
                           color: AppColors.accent,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
@@ -251,7 +227,7 @@ class _AdminCollegeStaffListScreenState
                                       ),
                                     ),
                                     const SizedBox(width: 12),
-                                    Expanded(
+Expanded(
                                       child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
@@ -289,6 +265,12 @@ class _AdminCollegeStaffListScreenState
                             },
                           ),
                         ),
+        ),
+        PaginationBar(
+          data: p.pagination,
+          isLoading: p.isLoading,
+          onPageChanged: (page) =>
+              ref.read(adminCollegeStaffProvider.notifier).fetch(page: page),
         ),
       ]),
     );

@@ -9,8 +9,18 @@ class AdminTeamLeadService {
     return ApiClient.post('/api/admin/teamlead', data);
   }
 
-  static Future<Map<String, dynamic>> getAll() {
-    return ApiClient.get('/api/admin/teamlead');
+  static Future<Map<String, dynamic>> getAll({
+    int page = 0,
+    int size = 20,
+    String sort = 'id',
+    String direction = 'asc',
+  }) {
+    return ApiClient.get('/api/admin/teamlead', queryParams: {
+      'page': '$page',
+      'size': '$size',
+      'sort': sort,
+      'direction': direction,
+    });
   }
 
   static Future<Map<String, dynamic>> getById(String id) {

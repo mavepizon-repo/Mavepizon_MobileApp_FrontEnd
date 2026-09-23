@@ -16,6 +16,7 @@ class StudentProfileScreen extends ConsumerStatefulWidget {
 class _StudentProfileScreenState extends ConsumerState<StudentProfileScreen> {
   String _name = '';
   String _email = '';
+  String _profilePhoto = '';
 
   @override
   void initState() {
@@ -26,6 +27,7 @@ class _StudentProfileScreenState extends ConsumerState<StudentProfileScreen> {
   Future<void> _load() async {
     _name = await StorageHelper.getUserName() ?? 'Student';
     _email = await StorageHelper.getUserEmail() ?? '';
+    _profilePhoto = await StorageHelper.getUserProfile() ?? '';
     if (mounted) setState(() {});
   }
 
@@ -57,14 +59,21 @@ class _StudentProfileScreenState extends ConsumerState<StudentProfileScreen> {
                   shape: BoxShape.circle,
                   border: Border.all(
                       color: Colors.white.withOpacity(0.3), width: 2),
+                  image: _profilePhoto.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(_profilePhoto),
+                          fit: BoxFit.cover)
+                      : null,
                 ),
-                child: Center(
-                    child: Text(
-                        _name.isNotEmpty ? _name[0].toUpperCase() : 'S',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w800))),
+                child: _profilePhoto.isEmpty
+                    ? Center(
+                        child: Text(
+                            _name.isNotEmpty ? _name[0].toUpperCase() : 'S',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.w800)))
+                    : null,
               ),
               const SizedBox(height: 16),
               Text(_name,

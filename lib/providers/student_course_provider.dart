@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/utils/pagination_data.dart';
 import '../services/student_course_service.dart';
 
 class StudentCourseProvider extends ChangeNotifier {
@@ -10,29 +11,44 @@ class StudentCourseProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
+  int currentPage = 0;
+  int totalPages = 1;
+  int totalElements = 0;
+  int pageSize = 20;
+
   List<dynamic> get courses => _courses;
   Map<String, dynamic>? get selectedCourse => _selectedCourse;
   List<dynamic> get myCourses => _myCourses;
   Map<String, dynamic>? get registrationResult => _registrationResult;
 
-  Future<void> fetchAvailableCourses() async {
+  PaginationData get pagination => PaginationData(
+        page: currentPage,
+        totalPages: totalPages,
+        totalElements: totalElements,
+        size: pageSize,
+      );
+
+  Future<void> fetchAvailableCourses({int page = 0, int size = 20}) async {
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
-      final result = await StudentCourseService.getAvailableCourses();
+      final result =
+          await StudentCourseService.getAvailableCourses(page: page, size: size);
       if (result['success'] == true) {
-        final data = result['data'];
-        // /api/course/get-all returns BOTH courses and internships; keep only
-        // the category == COURSE entries in the student course list.
-        _courses = data is List
-            ? (data.where((e) =>
-                    e is Map &&
-                    (e['category']?.toString() ?? '').toUpperCase() ==
-                        'COURSE')
-                .toList())
-            : [];
+        final pageData = PaginationData.parse(result['data']);
+        // get-all returns BOTH courses and internships; keep only the
+        // category == COURSE entries in the student course list.
+        _courses = pageData.content
+            .where((e) =>
+                e is Map &&
+                (e['category']?.toString() ?? '').toUpperCase() == 'COURSE')
+            .toList();
+        currentPage = pageData.page;
+        totalPages = pageData.totalPages;
+        totalElements = pageData.totalElements;
+        if (pageData.size > 0) pageSize = pageData.size;
       } else {
         error = result['message'] ?? 'Failed to load courses';
       }
@@ -43,6 +59,9 @@ class StudentCourseProvider extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
   }
+
+  Future<void> refreshAvailableCourses() =>
+      fetchAvailableCourses(page: currentPage, size: pageSize);
 
   Future<void> fetchCourseDetail(String id) async {
     isLoading = true;

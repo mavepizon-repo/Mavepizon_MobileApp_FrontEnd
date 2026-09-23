@@ -34,7 +34,7 @@ class _TlAttendanceScreenState extends ConsumerState<TlAttendanceScreen> {
   Future<void> _init() async {
     _tlId = await StorageHelper.getUserId() ?? '';
     if (mounted && _tlId.isNotEmpty) {
-      ref.read(tlAttendanceProvider.notifier).fetchHistory(_tlId);
+      await ref.read(tlAttendanceProvider.notifier).fetchHistory(_tlId);
       await _loadShiftFromStorage();
     }
     if (mounted && _shiftStart == null) {

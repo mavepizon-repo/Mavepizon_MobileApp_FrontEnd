@@ -44,17 +44,28 @@ class _AdminFreelancerTaskCreateScreenState
     Future.microtask(() async {
       // ensure freelancer list & tasks loaded
       final fp = ref.read(adminFreelancerProvider.notifier);
-      if (ref.read(adminFreelancerProvider).list.isEmpty) await fp.fetch();
+      if (ref.read(adminFreelancerProvider).list.isEmpty) {
+        await fp.fetch(size: 100);
+      }
       if (_isEdit) {
         final tp = ref.read(adminFreelancerTasksProvider.notifier);
-        if (ref.read(adminFreelancerTasksProvider).tasks.isEmpty) {
-          await tp.fetchAll();
+        final pag = ref.read(adminFreelancerTasksProvider);
+        dynamic task;
+        var pg = 0;
+        while (true) {
+          if (pg != pag.currentPage || pag.pageSize != 100) {
+            await tp.fetchAll(page: pg, size: 100);
+          }
+          task = ref
+              .read(adminFreelancerTasksProvider)
+              .tasks
+              .where((t) => t.id == widget.taskId)
+              .firstOrNull;
+          if (task != null) break;
+          final cur = ref.read(adminFreelancerTasksProvider);
+          if (pg >= cur.totalPages - 1) break;
+          pg++;
         }
-        final task = ref
-            .read(adminFreelancerTasksProvider)
-            .tasks
-            .where((t) => t.id == widget.taskId)
-            .firstOrNull;
         if (task != null) {
           setState(() {
             _orgCtrl.text = task.orgName;

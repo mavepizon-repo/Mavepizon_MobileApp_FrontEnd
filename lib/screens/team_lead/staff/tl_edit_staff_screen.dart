@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/utils/storage_helper.dart';
 import '../../../providers/staff_provider.dart';
 import '../../../widgets/app_button.dart';
 
@@ -92,6 +93,17 @@ class _TlEditStaffScreenState extends ConsumerState<TlEditStaffScreen> {
 
     _shiftStart = _parseTime(staff.shiftStartTime);
     _shiftEnd = _parseTime(staff.shiftEndTime);
+
+    final storedStart =
+        await StorageHelper.getStaffShiftStartTime(widget.staffId);
+    final storedEnd =
+        await StorageHelper.getStaffShiftEndTime(widget.staffId);
+    if (storedStart != null && storedStart.isNotEmpty) {
+      _shiftStart = _parseTime(storedStart) ?? _shiftStart;
+    }
+    if (storedEnd != null && storedEnd.isNotEmpty) {
+      _shiftEnd = _parseTime(storedEnd) ?? _shiftEnd;
+    }
 
     _existingProfile = staff.profilePhoto;
     _existingResume = staff.resume;

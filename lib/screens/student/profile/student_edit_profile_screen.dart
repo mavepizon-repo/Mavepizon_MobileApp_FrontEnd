@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/storage_helper.dart';
 import '../../../services/student_service.dart';
@@ -15,6 +18,8 @@ class _StudentEditProfileScreenState
     extends ConsumerState<StudentEditProfileScreen> {
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
+  Uint8List? _selectedImage;
+  String _profilePhoto = '';
   bool _loading = false;
 
   @override
@@ -25,8 +30,17 @@ class _StudentEditProfileScreenState
 
   Future<void> _load() async {
     final name = await StorageHelper.getUserName() ?? '';
+    _profilePhoto = await StorageHelper.getUserProfile() ?? '';
     _nameCtrl.text = name;
     if (mounted) setState(() {});
+  }
+
+  Future<void> _pickImage() async {
+    final file = await ImagePicker().pickImage(source: ImageSource.gallery);
+    if (file != null) {
+      final bytes = await file.readAsBytes();
+      if (mounted) setState(() => _selectedImage = bytes);
+    }
   }
 
   Future<void> _save() async {
@@ -34,7 +48,21 @@ class _StudentEditProfileScreenState
     if (studentId == null) return;
 
     setState(() => _loading = true);
-    final result = await StudentService.updateProfile(studentId, {
+
+    String uploadedPhoto = _profilePhoto;
+    if (_selectedImage != null) {
+      final fileResult = await StudentService.updateFiles({
+        'profile': (bytes: _selectedImage!, name: 'profile.jpg'),
+      });
+      final fileData = fileResult['data'];
+      if (fileResult['success'] == true && fileData is Map) {
+        uploadedPhoto = fileData['profile']?.toString() ??
+            fileData['profilePhoto']?.toString() ??
+            uploadedPhoto;
+      }
+    }
+
+    final result = await StudentService.updateProfile({
       'name': _nameCtrl.text.trim(),
     });
 
@@ -56,7 +84,7 @@ class _StudentEditProfileScreenState
           userId: studentId,
           userName: _nameCtrl.text.trim(),
           userEmail: await StorageHelper.getUserEmail() ?? '',
-          userProfile: await StorageHelper.getUserProfile() ?? '',
+          userProfile: uploadedPhoto,
         );
         if (mounted) Navigator.pop(context);
       }
@@ -102,6 +130,61 @@ class _StudentEditProfileScreenState
           child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+            Center(
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: Stack(children: [
+                  CircleAvatar(
+                    radius: 42,
+                    backgroundColor: AppColors.accent.withOpacity(0.12),
+                    backgroundImage:
+                        _selectedImage != null
+                            ? MemoryImage(_selectedImage!) as ImageProvider
+                            : (_profilePhoto.isNotEmpty
+                                ? NetworkImage(_profilePhoto)
+                                : null),
+                    child: _selectedImage == null &&
+                            _profilePhoto.isEmpty
+                        ? const Icon(Icons.person_rounded,
+                            color: AppColors.accent, size: 40)
+                        : null,
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: CircleAvatar(
+                      radius: 13,
+                      backgroundColor: AppColors.accent,
+                      child: const Icon(Icons.camera_alt_rounded,
+                          size: 14, color: Colors.white),
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Center(
+              child: Text(
+                _selectedImage != null
+                    ? 'Photo selected - tap to change'
+                    : 'Tap to add a profile photo',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSec(context),
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+            if (_selectedImage != null) ...[
+              const SizedBox(height: 6),
+              Center(
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _selectedImage = null),
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  label: const Text('Remove selected photo'),
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
             Text('Full Name',
                 style: TextStyle(
                     fontSize: 14,

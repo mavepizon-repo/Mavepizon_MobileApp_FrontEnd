@@ -41,7 +41,6 @@ class AppRoutes {
   static const String tlTaskReview = '/team-lead/task-review';
   static const String tlAttendance = '/team-lead/attendance';
   static const String tlAttendanceHistory = '/team-lead/attendance-history';
-  static const String tlNotifications = '/team-lead/notifications';
 
   // ===================== ADMIN =====================
   static const String adminMain = '/admin-main';
@@ -92,9 +91,7 @@ class AppRoutes {
   static const String trainerBatches = '/staff/trainer-batches';
   static const String trainerBatchDetail = '/staff/trainer-batch-detail';
   static const String trainerMaterials = '/staff/trainer-materials';
-  static const String trainerFeeConfirmation = '/staff/trainer-fee-confirmation';
   static const String trainerAttendance = '/staff/trainer-attendance';
-  static const String trainerZoomLink = '/staff/trainer-zoom-link';
   static const String telecallerEnquiries = '/staff/telecaller-enquiries';
   static const String telecallerEnquiryDetail = '/staff/telecaller-enquiry-detail';
   static const String telecallerFollowups = '/staff/telecaller-followups';

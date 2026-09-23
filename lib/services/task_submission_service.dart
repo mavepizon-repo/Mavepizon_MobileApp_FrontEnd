@@ -132,8 +132,21 @@ class TaskSubmissionService {
   }
 
   // ─── GET ALL ───────────────────────────────────────────────────
-  static Future<Map<String, dynamic>> getAll() {
-    return ApiClient.get('/api/freelancer/task-submissions/get-all');
+  static Future<Map<String, dynamic>> getAll({
+    int page = 0,
+    int size = 20,
+    String sort = 'id',
+    String direction = 'asc',
+  }) {
+    return ApiClient.get(
+      '/api/freelancer/task-submissions/get-all',
+      queryParams: {
+        'page': '$page',
+        'size': '$size',
+        'sort': sort,
+        'direction': direction,
+      },
+    );
   }
 
   // ─── DELETE ────────────────────────────────────────────────────

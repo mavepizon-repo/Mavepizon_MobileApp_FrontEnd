@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../models/team_lead_model.dart';
 import '../../../providers/admin_team_lead_provider.dart';
 import '../../../widgets/status_badge.dart';
 
@@ -173,6 +174,8 @@ class _AdminTlDetailScreenState extends ConsumerState<AdminTlDetailScreen> {
                                     _DetailRow(context, 
                                         'Role', t.role),
                                     _DetailRow(context, 
+                                        'Shift', _shiftLabel(t)),
+                                    _DetailRow(context, 
                                         'Gender', t.gender ?? '-'),
                                     _DetailRow(context, 
                                         'DOB', t.dob ?? '-'),
@@ -199,6 +202,27 @@ class _AdminTlDetailScreenState extends ConsumerState<AdminTlDetailScreen> {
                     ),
     );
   }
+}
+
+String _shiftLabel(TeamLeadModel t) {
+  String format(String raw) {
+    if (raw.isEmpty) return '';
+    final parts = raw.split(':');
+    if (parts.isEmpty) return '';
+    final h = int.tryParse(parts[0]);
+    final m = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    if (h == null) return '';
+    final period = h < 12 ? 'AM' : 'PM';
+    final hh = h % 12 == 0 ? 12 : h % 12;
+    return '$hh:${m.toString().padLeft(2, '0')} $period';
+  }
+
+  final s = format(t.shiftStart);
+  final e = format(t.shiftEnd);
+  if (s.isEmpty && e.isEmpty) return '-';
+  if (s.isEmpty) return 'until $e';
+  if (e.isEmpty) return 'from $s';
+  return '$s – $e';
 }
 
 Widget _PerfItem(BuildContext context, String label, String value) {

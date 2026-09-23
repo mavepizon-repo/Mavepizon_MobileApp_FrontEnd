@@ -88,13 +88,15 @@ class _StaffAttendanceScreenState
   }
 
   /// Shift end (check-out) time "HH:mm", matching backend `shiftEndTime`.
-  /// Falls back to "18:00" when the staff has no configured shift end.
+  /// Shows "--:--" when the staff has no configured shift end.
   String _shiftEndLabel() {
     final t = _shiftTimes;
-    final raw = (t == null || t.$2.trim().isEmpty) ? '18:00' : t.$2.trim();
+    final raw = (t == null || t.$2.trim().isEmpty) ? '' : t.$2.trim();
+    if (raw.isEmpty) return '--:--';
     final parts = raw.split(':');
-    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 18 : 18;
+    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
     final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    if (hour == null) return '--:--';
     return _to12h(hour, minute);
   }
 

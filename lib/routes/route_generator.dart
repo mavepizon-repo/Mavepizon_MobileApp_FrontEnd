@@ -39,7 +39,6 @@ import '../screens/team_lead/permission/tl_permission_status_screen.dart';
 import '../screens/team_lead/tasks/tl_task_review_screen.dart';
 import '../screens/team_lead/attendance/tl_attendance_screen.dart';
 import '../screens/team_lead/attendance/tl_attendance_history_screen.dart';
-import '../screens/team_lead/notifications/tl_notification_screen.dart';
 
 // ── Admin Imports ──────────────────────────────────────────────
 import '../screens/admin/admin_main_screen.dart';
@@ -141,9 +140,7 @@ import '../screens/staff/tasks/staff_task_detail_screen.dart';
 import '../screens/staff/trainer/staff_trainer_batches_screen.dart';
 import '../screens/staff/trainer/staff_trainer_batch_detail_screen.dart';
 import '../screens/staff/trainer/staff_trainer_materials_screen.dart';
-import '../screens/staff/trainer/staff_trainer_fee_confirmation_screen.dart';
 import '../screens/staff/trainer/staff_trainer_attendance_screen.dart';
-import '../screens/staff/trainer/staff_trainer_zoom_link_screen.dart';
 import '../screens/staff/telecaller/staff_telecaller_enquiries_screen.dart';
 import '../screens/staff/telecaller/staff_telecaller_enquiry_detail_screen.dart';
 import '../screens/staff/telecaller/staff_telecaller_followups_screen.dart';
@@ -304,10 +301,6 @@ class RouteGenerator {
       case AppRoutes.tlAttendanceHistory:
         return MaterialPageRoute(
             builder: (_) => const TlAttendanceHistoryScreen());
-
-      case AppRoutes.tlNotifications:
-        return MaterialPageRoute(
-            builder: (_) => const TlNotificationScreen());
 
       // ===================== ADMIN =====================
       case AppRoutes.adminMain:
@@ -514,24 +507,11 @@ class RouteGenerator {
         return MaterialPageRoute(
             builder: (_) => const StaffTrainerMaterialsScreen());
 
-      case AppRoutes.trainerFeeConfirmation:
-        final fcArgs = args as Map<String, dynamic>;
-        return MaterialPageRoute(
-            builder: (_) => StaffTrainerFeeConfirmationScreen(
-                batchId: fcArgs['batchId']?.toString() ?? ''));
-
       case AppRoutes.trainerAttendance:
         final taArgs = args as Map<String, dynamic>;
         return MaterialPageRoute(
             builder: (_) => StaffTrainerAttendanceScreen(
                 batchId: taArgs['batchId']?.toString() ?? ''));
-
-      case AppRoutes.trainerZoomLink:
-        final zlArgs = args as Map<String, dynamic>;
-        return MaterialPageRoute(
-            builder: (_) => StaffTrainerZoomLinkScreen(
-                batchId: zlArgs['batchId']?.toString() ?? '',
-                currentZoomLink: zlArgs['currentZoomLink']?.toString()));
 
       case AppRoutes.telecallerEnquiries:
         return MaterialPageRoute(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/pagination_data.dart';
 import '../../models/task_model.dart';
 import '../../services/task_service.dart';
 import '../../services/freelancer_task_service.dart';
@@ -161,9 +162,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     final flNames = <String>{};
 
     try {
-      final tlRes = await AdminTeamLeadService.getAll();
-      if (tlRes['success'] == true && tlRes['data'] is List) {
-        for (final e in tlRes['data'] as List) {
+      final tlRes = await AdminTeamLeadService.getAll(size: 500);
+      if (tlRes['success'] == true) {
+        for (final e in PaginationData.parse(tlRes['data']).content) {
           final m = Map<String, dynamic>.from(e as Map);
           final name = m['name']?.toString() ?? m['fullName']?.toString() ?? '';
           if (name.isEmpty) continue;
@@ -178,9 +179,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     } catch (_) {}
 
     try {
-      final stRes = await AdminStaffService.getAll();
-      if (stRes['success'] == true && stRes['data'] is List) {
-        for (final e in stRes['data'] as List) {
+      final stRes = await AdminStaffService.getAll(size: 500);
+      if (stRes['success'] == true) {
+        for (final e in PaginationData.parse(stRes['data']).content) {
           final m = Map<String, dynamic>.from(e as Map);
           final name = m['name']?.toString() ?? '';
           if (name.isEmpty) continue;
@@ -195,9 +196,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     } catch (_) {}
 
     try {
-      final flRes = await FreelancerService.getAll();
-      if (flRes['success'] == true && flRes['data'] is List) {
-        for (final e in flRes['data'] as List) {
+      final flRes = await FreelancerService.getAll(size: 500);
+      if (flRes['success'] == true) {
+        for (final e in PaginationData.parse(flRes['data']).content) {
           final m = Map<String, dynamic>.from(e as Map);
           final name = m['name']?.toString() ?? '';
           if (name.isEmpty) continue;
@@ -230,9 +231,9 @@ class _MonthlyReportScreenState extends State<MonthlyReportScreen> {
     }
 
     // Freelancer tasks
-    final flTaskRes = await FreelancerTaskService.getAll();
-    if (flTaskRes['success'] == true && flTaskRes['data'] is List) {
-      for (final e in flTaskRes['data'] as List) {
+    final flTaskRes = await FreelancerTaskService.getAll(size: 500);
+    if (flTaskRes['success'] == true) {
+      for (final e in PaginationData.parse(flTaskRes['data']).content) {
         final m = Map<String, dynamic>.from(e as Map);
         final names =
             (m['freelancerNames'] as List? ?? []).map((n) => n.toString());

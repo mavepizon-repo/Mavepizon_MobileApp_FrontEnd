@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/utils/storage_helper.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../routes/app_routes.dart';
@@ -412,10 +413,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: GestureDetector(
-                                    onTap: () => Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.forgotPassword,
-                                    ),
+                                    onTap: () async {
+                                      // Pass the last known role so the
+                                      // forgot-password flow targets the right
+                                      // endpoint (e.g. students -> /api/student/
+                                      // forgot-password/* instead of a dead probe).
+                                      final role =
+                                          await StorageHelper.getRole();
+                                      if (!context.mounted) return;
+                                      Navigator.pushNamed(
+                                        context,
+                                        AppRoutes.forgotPassword,
+                                        arguments: {'role': role ?? ''},
+                                      );
+                                    },
                                     child: const Text(
                                       'Forgot Password?',
                                       style: TextStyle(

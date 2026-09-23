@@ -5,6 +5,7 @@ import '../../../providers/admin_freelancer_provider.dart';
 import '../../../providers/freelancer_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../services/task_submission_service.dart';
+import '../../../widgets/pagination_bar.dart';
 import '../../../widgets/status_badge.dart';
 
 class AdminFreelancerTaskListScreen extends ConsumerStatefulWidget {
@@ -34,8 +35,14 @@ class _AdminFreelancerTaskListScreenState
   Future<void> _loadSubmissions() async {
     try {
       final result = await TaskSubmissionService.getAll();
-      if (result['success'] == true && result['data'] is List) {
-        final ids = (result['data'] as List)
+      if (result['success'] == true) {
+        final raw = result['data'];
+        final list = raw is List
+            ? raw
+            : (raw is Map && raw['content'] is List
+                ? (raw['content'] as List)
+                : const <dynamic>[]);
+        final ids = list
             .map((s) => (s is Map ? s['freelancerTaskId'] : null)?.toString())
             .whereType<String>()
             .toSet();
@@ -79,7 +86,7 @@ class _AdminFreelancerTaskListScreenState
             icon: const Icon(Icons.add_rounded),
             onPressed: () =>
                 Navigator.pushNamed(context, AppRoutes.adminFreelancerTaskCreate)
-                    .then((_) => p.fetchAll()),
+                    .then((_) => p.refresh()),
           ),
         ],
       ),
@@ -138,7 +145,7 @@ class _AdminFreelancerTaskListScreenState
                               style: TextStyle(color: AppColors.textHi(context))))
                       : RefreshIndicator(
                           onRefresh: () =>
-                              ref.read(adminFreelancerTasksProvider.notifier).fetchAll(),
+                              ref.read(adminFreelancerTasksProvider.notifier).refresh(),
                           color: AppColors.accent,
                           child: ListView.builder(
                             padding: const EdgeInsets.all(16),
@@ -150,7 +157,7 @@ class _AdminFreelancerTaskListScreenState
                                     context,
                                     AppRoutes.adminFreelancerTaskDetail,
                                     arguments: {'id': t.id}).then((_) {
-                                  p.fetchAll();
+                                  p.refresh();
                                   _loadSubmissions();
                                 }),
                                 child: Container(
@@ -244,6 +251,12 @@ class _AdminFreelancerTaskListScreenState
                             },
                           ),
                         ),
+        ),
+        PaginationBar(
+          data: p.pagination,
+          isLoading: p.isLoading,
+          onPageChanged: (page) =>
+              ref.read(adminFreelancerTasksProvider.notifier).fetchAll(page: page),
         ),
       ]),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/utils/pagination_data.dart';
 import '../models/staff_model.dart';
 import '../services/admin_staff_service.dart';
 
@@ -10,24 +11,37 @@ class AdminStaffProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
+  int currentPage = 0;
+  int totalPages = 1;
+  int totalElements = 0;
+  int pageSize = 20;
+
   List<StaffModel> get list => _list;
   StaffModel? get selected => _selected;
   List<StaffModel> get pendingApprovals => _pendingApprovals;
+  PaginationData get pagination => PaginationData(
+        page: currentPage,
+        totalPages: totalPages,
+        totalElements: totalElements,
+        size: pageSize,
+      );
 
-  Future<void> fetch() async {
+  Future<void> fetch({int page = 0, int size = 20}) async {
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
-      final result = await AdminStaffService.getAll();
+      final result = await AdminStaffService.getAll(page: page, size: size);
       if (result['success'] == true) {
-        final data = result['data'];
-        if (data is List) {
-          _list = data.map((e) => StaffModel.fromJson(e)).toList();
-        } else {
-          _list = [];
-        }
+        final pageData = PaginationData.parse(result['data']);
+        _list = pageData
+            .map<StaffModel>((e) => StaffModel.fromJson(e))
+            .toList();
+        currentPage = pageData.page;
+        totalPages = pageData.totalPages;
+        totalElements = pageData.totalElements;
+        if (pageData.size > 0) pageSize = pageData.size;
       } else {
         error = result['message'] ?? 'Failed to load staff';
       }
@@ -38,6 +52,8 @@ class AdminStaffProvider extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
   }
+
+  Future<void> refresh() => fetch(page: currentPage, size: pageSize);
 
   Future<void> fetchById(String id) async {
     isLoading = true;
@@ -106,11 +122,36 @@ class AdminStaffProvider extends ChangeNotifier {
     try {
       final result = await AdminStaffService.delete(id);
       if (result['success'] == true) {
-        _list.removeWhere((s) => s.id == id);
+        await refresh();
+        if (_list.isEmpty && currentPage > 0) {
+          await fetch(page: currentPage - 1, size: pageSize);
+        }
         notifyListeners();
         return true;
       } else {
         error = result['message'] ?? 'Failed to delete staff';
+      }
+    } catch (e) {
+      error = 'Error: $e';
+    }
+    notifyListeners();
+    return false;
+  }
+
+  /// Soft-delete fallback used when the hard delete fails on a foreign-key
+  /// constraint (the backend cascade only clears tasks/permissions/leaves).
+  Future<bool> deactivate(String id) async {
+    try {
+      final result = await AdminStaffService.setStatus(id, false);
+      if (result['success'] == true) {
+        await refresh();
+        if (_list.isEmpty && currentPage > 0) {
+          await fetch(page: currentPage - 1, size: pageSize);
+        }
+        notifyListeners();
+        return true;
+      } else {
+        error = result['message'] ?? 'Failed to deactivate staff';
       }
     } catch (e) {
       error = 'Error: $e';

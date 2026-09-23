@@ -235,12 +235,6 @@ class _TlProfileScreenState extends ConsumerState<TlProfileScreen> {
                           context, AppRoutes.tlPermissionManagement)),
                   _divider(context, ),
                   _MenuItem(
-                      Icons.notifications_rounded, 'Notifications', AppColors.warning,
-                      subtitle: 'View updates from Admin',
-                      onTap: () => Navigator.pushNamed(
-                          context, AppRoutes.tlNotifications)),
-                  _divider(context, ),
-                  _MenuItem(
                       Icons.logout_rounded, 'Apply Leave', AppColors.card6,
                       subtitle: 'Submit leave request to Admin',
                       onTap: () => Navigator.pushNamed(

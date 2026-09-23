@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../services/auth_service.dart';
@@ -33,13 +35,33 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _obscureNew = true;
   bool _obscureConfirm = true;
 
+  static const int _resendCooldownSeconds = 30;
+  Timer? _resendTimer;
+  int _resendCooldown = 0;
+
   @override
   void dispose() {
+    _resendTimer?.cancel();
     _emailCtrl.dispose();
     _otpCtrl.dispose();
     _newPasswordCtrl.dispose();
     _confirmPasswordCtrl.dispose();
     super.dispose();
+  }
+
+  void _startResendCooldown() {
+    _resendTimer?.cancel();
+    setState(() => _resendCooldown = _resendCooldownSeconds);
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _resendCooldown--;
+        if (_resendCooldown <= 0) timer.cancel();
+      });
+    });
   }
 
   void _showError(String msg) {
@@ -67,6 +89,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     if (r['success'] == true) {
       setState(() => _step = _Step.otp);
+      _startResendCooldown();
     } else {
       _showError(r['message'] ?? 'Failed to send OTP. Please try again.');
     }
@@ -123,6 +146,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = false);
 
     if (r['success'] == true) {
+      _startResendCooldown();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('OTP resent to your email'),
         backgroundColor: AppColors.success,
@@ -274,9 +298,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: _isLoading ? null : _resendOtp,
-                    child: const Text('Resend OTP',
-                        style: TextStyle(
+                    onPressed: (_isLoading || _resendCooldown > 0)
+                        ? null
+                        : _resendOtp,
+                    child: Text(
+                        _resendCooldown > 0
+                            ? 'Resend OTP in ${_resendCooldown}s'
+                            : 'Resend OTP',
+                        style: const TextStyle(
                             color: AppColors.accent,
                             fontWeight: FontWeight.w600)),
                   ),

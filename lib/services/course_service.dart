@@ -4,8 +4,12 @@ class CourseService {
   CourseService._();
 
   // ─── GET ALL COURSES ──────────────────────────────────────────
-  static Future<Map<String, dynamic>> getAll() async {
-    return ApiClient.get('/api/course/get-all');
+  static Future<Map<String, dynamic>> getAll(
+      {int page = 0, int size = 20}) {
+    return ApiClient.get(
+      '/api/course/get-all',
+      queryParams: {'page': '$page', 'size': '$size'},
+    );
   }
 
   // ─── GET COURSE BY ID ─────────────────────────────────────────

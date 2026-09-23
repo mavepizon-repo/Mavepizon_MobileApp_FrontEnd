@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../core/utils/pagination_data.dart';
 import '../models/college_staff_model.dart';
 import '../services/admin_college_staff_service.dart';
 
@@ -9,23 +10,37 @@ class AdminCollegeStaffProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
+  int currentPage = 0;
+  int totalPages = 1;
+  int totalElements = 0;
+  int pageSize = 20;
+
   List<CollegeStaffModel> get list => _list;
   CollegeStaffModel? get selected => _selected;
+  PaginationData get pagination => PaginationData(
+        page: currentPage,
+        totalPages: totalPages,
+        totalElements: totalElements,
+        size: pageSize,
+      );
 
-  Future<void> fetch() async {
+  Future<void> fetch({int page = 0, int size = 20}) async {
     isLoading = true;
     error = null;
     notifyListeners();
 
     try {
-      final result = await AdminCollegeStaffService.getAll();
+      final result =
+          await AdminCollegeStaffService.getAll(page: page, size: size);
       if (result['success'] == true) {
-        final data = result['data'];
-        if (data is List) {
-          _list = data.map((e) => CollegeStaffModel.fromJson(e)).toList();
-        } else {
-          _list = [];
-        }
+        final pageData = PaginationData.parse(result['data']);
+        _list = pageData
+            .map<CollegeStaffModel>((e) => CollegeStaffModel.fromJson(e))
+            .toList();
+        currentPage = pageData.page;
+        totalPages = pageData.totalPages;
+        totalElements = pageData.totalElements;
+        if (pageData.size > 0) pageSize = pageData.size;
       } else {
         error = result['message'] ?? 'Failed to load college staff';
       }
@@ -36,6 +51,8 @@ class AdminCollegeStaffProvider extends ChangeNotifier {
     isLoading = false;
     notifyListeners();
   }
+
+  Future<void> refresh() => fetch(page: currentPage, size: pageSize);
 
   Future<void> fetchById(String id) async {
     isLoading = true;
@@ -67,7 +84,7 @@ class AdminCollegeStaffProvider extends ChangeNotifier {
       if (result['success'] == true) {
         isLoading = false;
         notifyListeners();
-        await fetch();
+        await refresh();
         return true;
       } else {
         error = result['message'] ?? 'Failed to create';
@@ -91,7 +108,7 @@ class AdminCollegeStaffProvider extends ChangeNotifier {
       if (result['success'] == true) {
         isLoading = false;
         notifyListeners();
-        await fetch();
+        await refresh();
         return true;
       } else {
         error = result['message'] ?? 'Failed to update';
@@ -113,7 +130,10 @@ class AdminCollegeStaffProvider extends ChangeNotifier {
     try {
       final result = await AdminCollegeStaffService.delete(id);
       if (result['success'] == true) {
-        await fetch();
+        await refresh();
+        if (_list.isEmpty && currentPage > 0) {
+          await fetch(page: currentPage - 1, size: pageSize);
+        }
         return true;
       } else {
         error = result['message'] ?? 'Failed to delete';

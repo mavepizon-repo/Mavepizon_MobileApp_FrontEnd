@@ -1,12 +1,11 @@
 import '../core/network/api_client.dart';
-import '../core/utils/storage_helper.dart';
 
 class StudentNotificationService {
   StudentNotificationService._();
 
-  static Future<Map<String, dynamic>> getAll() async {
-    final studentId = await StorageHelper.getUserId();
-    return ApiClient.get('/api/student/$studentId/notifications');
+  // GET /api/student/notifications (student resolved from JWT, no path variable)
+  static Future<Map<String, dynamic>> getAll() {
+    return ApiClient.get('/api/student/notifications');
   }
 
   static Future<Map<String, dynamic>> markAsRead(String notificationId) async {

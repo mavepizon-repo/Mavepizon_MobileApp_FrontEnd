@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/storage_helper.dart';
 import '../../../core/utils/string_utils.dart';
 import '../../../providers/admin_leave_provider.dart';
+import '../../../widgets/pagination_bar.dart';
 import '../../../widgets/status_badge.dart';
 
 class AdminLeaveApprovalScreen extends ConsumerStatefulWidget {
@@ -61,17 +62,27 @@ class _AdminLeaveApprovalScreenState
               child: CircularProgressIndicator(color: AppColors.accent))
           : p.error != null
               ? Center(child: Text(p.error!))
-              : TabBarView(controller: _tabCtrl, children: [
-                  _LeaveList(
-                      leaves: pending,
-                      onRefresh: () => p.fetch(),
-                      onApprove: (id) => _handleApprove(p, id),
-                      onReject: (id) => _handleReject(p, id)),
-                  _LeaveList(
-                      leaves: all,
-                      onRefresh: () => p.fetch(),
-                      onApprove: (id) => _handleApprove(p, id),
-                      onReject: (id) => _handleReject(p, id)),
+              : Column(children: [
+                  Expanded(
+                    child: TabBarView(controller: _tabCtrl, children: [
+                      _LeaveList(
+                          leaves: pending,
+                          onRefresh: () => p.refresh(),
+                          onApprove: (id) => _handleApprove(p, id),
+                          onReject: (id) => _handleReject(p, id)),
+                      _LeaveList(
+                          leaves: all,
+                          onRefresh: () => p.refresh(),
+                          onApprove: (id) => _handleApprove(p, id),
+                          onReject: (id) => _handleReject(p, id)),
+                    ]),
+                  ),
+                  PaginationBar(
+                    data: p.pagination,
+                    isLoading: p.isLoading,
+                    onPageChanged: (page) =>
+                        ref.read(adminLeaveProvider.notifier).fetch(page: page),
+                  ),
                 ]),
     );
   }

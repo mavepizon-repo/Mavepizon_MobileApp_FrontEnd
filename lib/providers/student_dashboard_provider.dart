@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/student_course_service.dart';
 import '../services/student_internship_service.dart';
 import '../services/student_certificate_service.dart';
-import '../services/student_payment_service.dart';
 
 class StudentDashboardProvider extends ChangeNotifier {
   int _courseCount = 0;
@@ -11,6 +10,7 @@ class StudentDashboardProvider extends ChangeNotifier {
   int _paymentCount = 0;
   int _certificateCount = 0;
   List<dynamic> _availableCourses = [];
+  String? _dbStudentId;
   bool isLoading = false;
   String? error;
 
@@ -30,7 +30,10 @@ class StudentDashboardProvider extends ChangeNotifier {
     final courses = await StudentCourseService.getMyCourses();
     if (courses['success'] == true) {
       final data = courses['data'];
-      _courseCount = data is List ? data.length : 0;
+      final list = data is List ? data : <dynamic>[];
+      _courseCount = list.length;
+      _paymentCount = _countPaidRegistrations(list);
+      _dbStudentId = _extractDbStudentId(list);
     } else {
       errs.add('Courses: ${courses['message']}');
     }
@@ -43,19 +46,9 @@ class StudentDashboardProvider extends ChangeNotifier {
       errs.add('Internships: ${myInternships['message']}');
     }
 
-    try {
-      final payments = await StudentPaymentService.getPaymentsByRegistration('');
-      if (payments['success'] == true) {
-        final data = payments['data'];
-        _paymentCount = data is List ? data.length : 0;
-      } else {
-        _paymentCount = _courseCount;
-      }
-    } catch (_) {
-      _paymentCount = _courseCount;
-    }
-
-    final certs = await StudentCertificateService.getMyCertificates();
+    final certs = await StudentCertificateService.getMyCertificates(
+      dbStudentId: _dbStudentId,
+    );
     if (certs['success'] == true) {
       final data = certs['data'];
       _certificateCount = data is List ? data.length : 0;
@@ -66,7 +59,20 @@ class StudentDashboardProvider extends ChangeNotifier {
     final available = await StudentCourseService.getAvailableCourses();
     if (available['success'] == true) {
       final data = available['data'];
-      _availableCourses = data is List ? data : [];
+      // /api/course/get-all returns a Spring Page ({content: [...]}), NOT a
+      // plain List. Accept both shapes and keep only COURSE entries.
+      var list = <dynamic>[];
+      if (data is List) {
+        list = data;
+      } else if (data is Map) {
+        final content = data['content'];
+        if (content is List) list = content;
+      }
+      _availableCourses = list
+          .where((e) =>
+              e is Map &&
+              (e['category']?.toString() ?? '').toUpperCase() == 'COURSE')
+          .toList();
     }
 
     if (errs.isNotEmpty && _courseCount == 0 && _internshipCount == 0 && _paymentCount == 0 && _certificateCount == 0) {
@@ -75,6 +81,35 @@ class StudentDashboardProvider extends ChangeNotifier {
 
     isLoading = false;
     notifyListeners();
+  }
+
+  String? _extractDbStudentId(List<dynamic> registrations) {
+    for (final r in registrations) {
+      if (r is Map) {
+        final student = r['student'];
+        if (student is Map) {
+          final id = student['id'];
+          if (id != null) return id.toString();
+        }
+      }
+    }
+    return null;
+  }
+
+  int _countPaidRegistrations(List<dynamic> registrations) {
+    var count = 0;
+    for (final r in registrations) {
+      if (r is Map) {
+        final status =
+            (r['paymentStatus']?.toString() ?? '').toUpperCase();
+        if (status == 'PAID' ||
+            status == 'SUCCESS' ||
+            status == 'COMPLETED') {
+          count++;
+        }
+      }
+    }
+    return count;
   }
 }
 

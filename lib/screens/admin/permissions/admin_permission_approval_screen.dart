@@ -159,9 +159,12 @@ class _PermissionList extends StatelessWidget {
         itemBuilder: (_, i) {
           final perm = permissions[i];
           final teamLead = perm['teamLead'];
-          final name = teamLead is Map
-              ? (teamLead['name']?.toString() ?? '')
-              : '';
+          final flatName = perm['teamLeadName']?.toString() ?? '';
+          final name = flatName.isNotEmpty
+              ? flatName
+              : teamLead is Map
+                  ? (teamLead['name']?.toString() ?? '')
+                  : '';
           final status =
               (perm['status'] ?? '').toString().toUpperCase();
           final date = truncate(perm['permissionDate']?.toString(), 10);

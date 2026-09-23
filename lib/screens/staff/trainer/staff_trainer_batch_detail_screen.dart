@@ -124,19 +124,6 @@ class _StaffTrainerBatchDetailScreenState
                           ),
                           Expanded(
                             child: _ActionBtn(
-                              icon: Icons.payments_rounded,
-                              label: 'Fee\nConfirmation',
-                              onTap: () => Navigator.pushNamed(
-                                  context,
-                                  AppRoutes
-                                      .trainerFeeConfirmation,
-                                  arguments: {
-                                    'batchId': widget.batchId
-                                  }),
-                            ),
-                          ),
-                          Expanded(
-                            child: _ActionBtn(
                               icon: Icons.videocam_rounded,
                               label: 'Zoom\nLink',
                               onTap: _showZoomLink,
@@ -241,66 +228,9 @@ class _StaffTrainerBatchDetailScreenState
           TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('Close')),
-          if (link.isNotEmpty)
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _updateZoomLink();
-              },
-              child: const Text('Update',
-                  style: TextStyle(color: AppColors.accent)),
-            ),
         ],
       ),
     );
-  }
-
-  Future<void> _updateZoomLink() async {
-    final ctrl = TextEditingController(
-        text: widget.zoomLink);
-    final link = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Update Zoom Link'),
-        content: TextField(
-          controller: ctrl,
-          decoration: const InputDecoration(
-            hintText: 'Enter Zoom URL',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, ctrl.text),
-              child: const Text('Save',
-                  style: TextStyle(color: AppColors.accent))),
-        ],
-      ),
-    );
-    if (link != null && link.isNotEmpty) {
-      final result =
-          await TrainerService.updateZoomLink(_staffId, {
-        'batchId': widget.batchId,
-        'zoomLink': link,
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                result['success'] == true
-                    ? 'Zoom link updated'
-                    : 'Update failed'),
-            backgroundColor: result['success'] == true
-                ? AppColors.success
-                : AppColors.error,
-          ),
-        );
-        if (result['success'] == true) _load();
-      }
-    }
   }
 
   void _markAttendance(BuildContext context) async {

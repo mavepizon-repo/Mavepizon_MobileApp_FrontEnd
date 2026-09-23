@@ -53,6 +53,48 @@ class AuthService {
     };
   }
 
+  // ─── LOGIN ERROR SELECTION ─────────────────────────────────
+  // All role endpoints are probed in parallel, so on failure several errors
+  // come back. Most are the generic "Invalid email or password" from roles the
+  // account does NOT belong to, while the correct role may return something
+  // more specific (account inactive/deactivated, too many attempts, ...).
+  // Last-error-wins used to keep only the freelancer probe's generic message,
+  // masking those details. Instead we score the errors and surface the most
+  // informative one.
+  static bool _isGenericCredential(String msg) {
+    final m = msg.toLowerCase();
+    return m.contains('invalid email') ||
+        m.contains('invalid user') ||
+        m.contains('invalid cred') ||
+        m.contains('incorrect') ||
+        m.contains('wrong password') ||
+        m.contains('does not match') ||
+        m.contains('invalid password');
+  }
+
+  static int _errorInfoScore(Map<String, dynamic> r) {
+    final msg = (r['message'] ?? '').toString();
+    final data = r['data'];
+    final body = data is Map ? data.toString() : '';
+    final blob = '$msg $body'.toLowerCase();
+    final status = r['status']?.toString() ?? '';
+
+    if (status == '429' || blob.contains('too many') ||
+        blob.contains('many attempts')) {
+      return 1000; // rate limit - most important to surface
+    }
+    if (status == '403' ||
+        blob.contains('inactive') ||
+        blob.contains('deactivat') ||
+        blob.contains('disabled') ||
+        blob.contains('blocked') ||
+        blob.contains('suspended')) {
+      return 500; // account-level info (inactive/blocked) - keep visible
+    }
+    if (_isGenericCredential(msg)) return 0; // masked behind specific errors
+    return 100; // any other specific endpoint message
+  }
+
   // ─── GENERIC LOGIN (try each role endpoint) ────────────────────
   static Future<Map<String, dynamic>> login(
       String email, String password) async {
@@ -91,6 +133,7 @@ class AuthService {
       );
 
       // 1. The first successful login wins.
+      final candidates = <Map<String, dynamic>>[];
       for (var i = 0; i < attempts.length; i++) {
         final result = results[i];
         final data = result['data'];
@@ -106,18 +149,32 @@ class AuthService {
           if (normalized['token'].toString().isNotEmpty) {
             return {'success': true, 'data': normalized};
           }
-          lastError = {
+          candidates.add({
             'success': false,
             'message':
                 data['message']?.toString() ?? 'Invalid email or password',
             'data': data,
-          };
+          });
         } else {
-          lastError = result;
+          candidates.add(result);
         }
       }
 
-      // 2. Retry once only when every attempt failed transiently (e.g. the
+      // 2. Pick the most informative failure instead of last-error-wins, so a
+      //    rate-limit, inactive-account or other specific message from the
+      //    correct role is never hidden by another role's generic error.
+      Map<String, dynamic>? bestError;
+      var bestScore = -1;
+      for (final c in candidates) {
+        final score = _errorInfoScore(c);
+        if (score > bestScore) {
+          bestScore = score;
+          bestError = c;
+        }
+      }
+      if (bestError != null) lastError = bestError;
+
+      // 3. Retry once only when every attempt failed transiently (e.g. the
       //    instance is still cold-starting) instead of on a definite 401/404.
       final allTransient =
           results.isNotEmpty && results.every(_isTransient);
@@ -174,7 +231,7 @@ class AuthService {
     final studentId = await StorageHelper.getUserId();
     if (studentId != null && studentId.isNotEmpty) {
       final studentResult = await ApiClient.patch(
-        '/api/student/$studentId/change-password',
+        '/api/student/change-password',
         {
           'oldPassword': oldPassword,
           'newPassword': newPassword,
@@ -251,6 +308,18 @@ class AuthService {
           {},
           auth: false);
     }
+    if (role == 'STUDENT') {
+      if (endpoint == 'reset') {
+        return ApiClient.post(
+            '/api/student/forgot-password/reset?email=$email&otp=$otp&newPassword=$newPassword',
+            {},
+            auth: false);
+      }
+      return ApiClient.post(
+          '/api/student/forgot-password/$endpoint?email=$email${otp != null ? '&otp=$otp' : ''}',
+          {},
+          auth: false);
+    }
     return {'success': false, 'message': 'Invalid role'};
   }
 
@@ -260,6 +329,13 @@ class AuthService {
     if (role != null && role.isNotEmpty) {
       return _tryRoleForgotPassword(role, 'send-otp', null, email);
     }
+
+    final studentResult = await ApiClient.post(
+      '/api/student/forgot-password/send-otp?email=$email',
+      {},
+      auth: false,
+    );
+    if (studentResult['success'] == true) return studentResult;
 
     final adminResult = await _tryAdminForgotPassword('send-otp', null, email);
     if (adminResult['success'] == true) return adminResult;
@@ -290,6 +366,13 @@ class AuthService {
     if (role != null && role.isNotEmpty) {
       return _tryRoleForgotPassword(role, 'verify-otp', null, email, otp: otp);
     }
+
+    final studentResult = await ApiClient.post(
+      '/api/student/forgot-password/verify-otp?email=$email&otp=$otp',
+      {},
+      auth: false,
+    );
+    if (studentResult['success'] == true) return studentResult;
 
     final adminResult =
         await _tryAdminForgotPassword('verify-otp', null, email, otp: otp);
@@ -322,6 +405,13 @@ class AuthService {
       return _tryRoleForgotPassword(role, 'reset', null, email,
           otp: otp, newPassword: newPassword);
     }
+
+    final studentResult = await ApiClient.post(
+      '/api/student/forgot-password/reset?email=$email&otp=$otp&newPassword=$newPassword',
+      {},
+      auth: false,
+    );
+    if (studentResult['success'] == true) return studentResult;
 
     final adminResult = await _tryAdminForgotPassword('reset', null, email,
         otp: otp, newPassword: newPassword);

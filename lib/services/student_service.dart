@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import '../core/network/api_client.dart';
 import '../core/utils/storage_helper.dart';
 
@@ -5,10 +6,14 @@ class StudentService {
   StudentService._();
 
   // ─── GET ALL STUDENTS ─────────────────────────────────────────
-  // GET /api/{teamLeadId}/students
-  static Future<Map<String, dynamic>> getAll() async {
+  // GET /api/{teamLeadId}/students?page=&size=
+  static Future<Map<String, dynamic>> getAll(
+      {int page = 0, int size = 20}) async {
     final teamLeadId = await StorageHelper.getUserId();
-    return ApiClient.get('/api/$teamLeadId/students');
+    return ApiClient.get(
+      '/api/$teamLeadId/students',
+      queryParams: {'page': '$page', 'size': '$size'},
+    );
   }
 
   // ─── GET STUDENT BY ID ────────────────────────────────────────
@@ -44,10 +49,24 @@ class StudentService {
   }
 
   // ─── UPDATE PROFILE (self) ────────────────────────────────────
-  // PUT /api/student/update/{studentId}
+  // PUT /api/student/update (student resolved from JWT, no path variable)
   static Future<Map<String, dynamic>> updateProfile(
-      String studentId, Map<String, dynamic> data) {
-    return ApiClient.put('/api/student/update/$studentId', data);
+      Map<String, dynamic> data) {
+    return ApiClient.put('/api/student/update', data);
+  }
+
+  // ─── GET MY FILES (self, resolved from JWT) ───────────────────
+  // GET /api/student/files
+  static Future<Map<String, dynamic>> getFiles() {
+    return ApiClient.get('/api/student/files');
+  }
+
+  // ─── UPDATE MY FILES (profile photo etc., PUT multipart) ──────
+  // PUT /api/student/update-files (student resolved from JWT)
+  static Future<Map<String, dynamic>> updateFiles(
+    Map<String, ({Uint8List bytes, String name})> files,
+  ) {
+    return ApiClient.multipartPut('/api/student/update-files', files);
   }
 
   // ─── FORGOT PASSWORD SEND OTP ─────────────────────────────────

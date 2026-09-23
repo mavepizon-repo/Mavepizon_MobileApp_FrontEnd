@@ -3,8 +3,17 @@ import '../core/network/api_client.dart';
 class TelecallerService {
   TelecallerService._();
 
-  static Future<Map<String, dynamic>> getEnquiries(String staffId) {
-    return ApiClient.get('/api/officestaff/telecalling/enquiry/all');
+  static Future<Map<String, dynamic>> getEnquiries(String staffId,
+      {int page = 0, int size = 20, String sort = 'id', String direction = 'asc'}) {
+    return ApiClient.get(
+      '/api/officestaff/telecalling/enquiry/all',
+      queryParams: {
+        'page': '$page',
+        'size': '$size',
+        'sort': sort,
+        'direction': direction,
+      },
+    );
   }
 
   static Future<Map<String, dynamic>> getEnquiryById(
@@ -60,9 +69,17 @@ class TelecallerService {
         '/api/officestaff/telecalling/enquiry/today-followups');
   }
 
-  static Future<Map<String, dynamic>> getCustomFollowups(String staffId) {
+  static Future<Map<String, dynamic>> getCustomFollowups(String staffId,
+      {int page = 0, int size = 20, String sort = 'id', String direction = 'asc'}) {
     return ApiClient.get(
-        '/api/officestaff/telecalling/custom-followups');
+      '/api/officestaff/telecalling/custom-followups',
+      queryParams: {
+        'page': '$page',
+        'size': '$size',
+        'sort': sort,
+        'direction': direction,
+      },
+    );
   }
 
   static Future<Map<String, dynamic>> addFollowup(

@@ -4,8 +4,18 @@ import '../core/network/api_client.dart';
 class AdminCollegeStaffService {
   AdminCollegeStaffService._();
 
-  static Future<Map<String, dynamic>> getAll() {
-    return ApiClient.get('/api/admin/college-staff');
+  static Future<Map<String, dynamic>> getAll({
+    int page = 0,
+    int size = 20,
+    String sort = 'id',
+    String direction = 'asc',
+  }) {
+    return ApiClient.get('/api/admin/college-staff', queryParams: {
+      'page': '$page',
+      'size': '$size',
+      'sort': sort,
+      'direction': direction,
+    });
   }
 
   static Future<Map<String, dynamic>> getById(String id) {

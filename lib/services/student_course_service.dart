@@ -3,13 +3,21 @@ import '../core/network/api_client.dart';
 class StudentCourseService {
   StudentCourseService._();
 
-  // GET /api/course/get-all (public)
-  static Future<Map<String, dynamic>> getAvailableCourses() {
-    return ApiClient.get('/api/course/get-all');
+  // GET /api/course/get-all (public, paginated)
+  static Future<Map<String, dynamic>> getAvailableCourses(
+      {int page = 0, int size = 20}) {
+    return ApiClient.get(
+      '/api/course/get-all',
+      queryParams: {'page': '$page', 'size': '$size'},
+    );
   }
 
-  static Future<Map<String, dynamic>> getAllCourses() {
-    return ApiClient.get('/api/course/get-all');
+  static Future<Map<String, dynamic>> getAllCourses(
+      {int page = 0, int size = 20}) {
+    return ApiClient.get(
+      '/api/course/get-all',
+      queryParams: {'page': '$page', 'size': '$size'},
+    );
   }
 
   // GET /api/course/get/id/{id}

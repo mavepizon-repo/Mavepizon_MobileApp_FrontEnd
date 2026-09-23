@@ -18,7 +18,20 @@ class LeaveProvider extends ChangeNotifier {
 
     final result = await LeaveService.getAllStaffLeaves();
     if (result['success'] == true) {
-      _staffLeaves = (result['data'] as List?)?.toList() ?? [];
+      final data = result['data'];
+      List<dynamic>? parsed;
+      if (data is List) {
+        parsed = data;
+      } else if (data is Map) {
+        for (final key in ['content', 'leaves', 'records', 'data']) {
+          final v = data[key];
+          if (v is List) {
+            parsed = v;
+            break;
+          }
+        }
+      }
+      _staffLeaves = parsed ?? [];
     } else {
       error = result['message'];
     }
