@@ -550,8 +550,14 @@ class RouteGenerator {
             builder: (_) => const StudentEditProfileScreen());
 
       case AppRoutes.studentCourseList:
+        final ccArgs = args;
+        final initialOffered = ccArgs is Map
+            ? (ccArgs['offeredOnly']?.toString() == 'true' ||
+                ccArgs['offeredOnly'] == true)
+            : false;
         return MaterialPageRoute(
-            builder: (_) => const StudentCourseListScreen());
+            builder: (_) =>
+                StudentCourseListScreen(initialOffered: initialOffered));
 
       case AppRoutes.studentCourseDetail:
         final cdArgs = args as Map<String, dynamic>;

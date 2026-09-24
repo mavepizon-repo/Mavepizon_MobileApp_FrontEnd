@@ -286,7 +286,8 @@ class _StudentDashboardScreenState
                       Icons.storefront_rounded,
                       AppColors.card1,
                       () => Navigator.pushNamed(
-                          context, AppRoutes.studentCourseList)),
+                          context, AppRoutes.studentCourseList,
+                          arguments: {'offeredOnly': true})),
                   const SizedBox(width: 10),
                   _QuickAction(context, 
                       'Internships',

@@ -61,6 +61,12 @@ class StudentService {
     return ApiClient.get('/api/student/files');
   }
 
+  // ─── GET MY DASHBOARD (self, resolved from JWT) ───────────────
+  // GET /api/student/dashboard (returns name among other stats)
+  static Future<Map<String, dynamic>> getDashboard() {
+    return ApiClient.get('/api/student/dashboard');
+  }
+
   // ─── UPDATE MY FILES (profile photo etc., PUT multipart) ──────
   // PUT /api/student/update-files (student resolved from JWT)
   static Future<Map<String, dynamic>> updateFiles(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/student_course_service.dart';
 import '../services/student_internship_service.dart';
 import '../services/student_certificate_service.dart';
+import '../core/utils/course_utils.dart';
 
 class StudentDashboardProvider extends ChangeNotifier {
   int _courseCount = 0;
@@ -71,7 +72,8 @@ class StudentDashboardProvider extends ChangeNotifier {
       _availableCourses = list
           .where((e) =>
               e is Map &&
-              (e['category']?.toString() ?? '').toUpperCase() == 'COURSE')
+              (e['category']?.toString() ?? '').toUpperCase() == 'COURSE' &&
+              isOfferedCourse(e))
           .toList();
     }
 

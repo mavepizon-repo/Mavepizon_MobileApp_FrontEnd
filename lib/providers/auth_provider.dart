@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/auth_service.dart';
+import '../services/student_service.dart';
 import '../core/utils/storage_helper.dart';
 import '../routes/app_routes.dart';
 
@@ -42,6 +43,9 @@ class AuthProvider extends ChangeNotifier {
           staffCategory: data['category']?.toString() ?? '',
           userProfile: data['profile']?.toString() ?? '',
         );
+        if ((data['role'] ?? '').toString() == 'STUDENT') {
+          await _refreshStoredStudentProfile(data);
+        }
         await loadUser();
         isLoading = false;
         notifyListeners();
@@ -58,6 +62,42 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  // The student login response only carries token/role/id/email, so on every
+  // login the real (possibly updated) name and profile photo are pulled from
+  // the backend self endpoints and re-saved, keeping them stable across
+  // logout/login cycles.
+  Future<void> _refreshStoredStudentProfile(Map<String, dynamic> data) async {
+    String name = data['name']?.toString() ?? '';
+    String profile = data['profile']?.toString() ?? '';
+
+    final dash = await StudentService.getDashboard();
+    if (dash['success'] == true && dash['data'] is Map) {
+      final dashMap = dash['data'] as Map;
+      final dashName = dashMap['name']?.toString() ?? '';
+      if (dashName.isNotEmpty) name = dashName;
+      final dashStudentId = dashMap['studentId']?.toString() ?? '';
+      if (dashStudentId.isNotEmpty) data['userId'] = dashStudentId;
+    }
+
+    final files = await StudentService.getFiles();
+    if (files['success'] == true && files['data'] is Map) {
+      final fileMap = files['data'] as Map;
+      final photo = fileMap['profilePhoto']?.toString() ??
+          fileMap['profile']?.toString() ??
+          '';
+      if (photo.isNotEmpty) profile = photo;
+    }
+
+    await StorageHelper.saveLoginData(
+      token: data['token']?.toString() ?? '',
+      role: 'STUDENT',
+      userId: data['userId']?.toString() ?? '',
+      userName: name,
+      userEmail: data['email']?.toString() ?? '',
+      userProfile: profile,
+    );
   }
 
   // ─── LOAD USER FROM STORAGE ──────────────────────────────────

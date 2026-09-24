@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/course_utils.dart';
 import '../../../providers/student_course_provider.dart';
 import '../../../routes/app_routes.dart';
 import '../../../widgets/pagination_bar.dart';
 
 class StudentCourseListScreen extends ConsumerStatefulWidget {
-  const StudentCourseListScreen({super.key});
+  const StudentCourseListScreen({super.key, this.initialOffered = false});
+  final bool initialOffered;
   @override
   ConsumerState<StudentCourseListScreen> createState() =>
       _StudentCourseListScreenState();
@@ -14,9 +16,12 @@ class StudentCourseListScreen extends ConsumerStatefulWidget {
 
 class _StudentCourseListScreenState
     extends ConsumerState<StudentCourseListScreen> {
+  late bool _offeredOnly;
+
   @override
   void initState() {
     super.initState();
+    _offeredOnly = widget.initialOffered;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(studentCourseProvider.notifier).fetchAvailableCourses();
     });
@@ -25,13 +30,16 @@ class _StudentCourseListScreenState
   @override
   Widget build(BuildContext context) {
     final cp = ref.watch(studentCourseProvider);
+    final courses = _offeredOnly
+        ? cp.courses.where(isOfferedCourse).toList()
+        : cp.courses;
 
     return Scaffold(
       
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Courses',
+        title: Text(_offeredOnly ? 'Offered Courses' : 'Courses',
             style: TextStyle(
                 color: AppColors.textPri(context),
                 fontWeight: FontWeight.w800,
@@ -47,6 +55,18 @@ class _StudentCourseListScreenState
         ],
       ),
       body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Row(children: [
+            _filterChip(context, 'All Courses', !_offeredOnly, () {
+              setState(() => _offeredOnly = false);
+            }),
+            const SizedBox(width: 8),
+            _filterChip(context, 'Offered Only', _offeredOnly, () {
+              setState(() => _offeredOnly = true);
+            }),
+          ]),
+        ),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () => ref
@@ -56,7 +76,7 @@ class _StudentCourseListScreenState
                 ? const Center(
                     child: CircularProgressIndicator(
                         color: AppColors.accent, strokeWidth: 2))
-                : cp.courses.isEmpty
+                : courses.isEmpty
                     ? Center(
                         child: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -67,16 +87,19 @@ class _StudentCourseListScreenState
                                       .textHi(context)
                                       .withOpacity(0.4)),
                               const SizedBox(height: 16),
-                              Text('No courses available',
+                              Text(
+                                  _offeredOnly
+                                      ? 'No offered courses right now'
+                                      : 'No courses available',
                                   style: TextStyle(
                                       color:
                                           AppColors.textHi(context))),
                             ]))
                     : ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        itemCount: cp.courses.length,
+                        itemCount: courses.length,
                         itemBuilder: (ctx, i) {
-                          final c = cp.courses[i];
+                          final c = courses[i];
                           return GestureDetector(
                             onTap: () => Navigator.pushNamed(
                                 context, AppRoutes.studentCourseDetail,
@@ -163,6 +186,30 @@ class _StudentCourseListScreenState
               .fetchAvailableCourses(page: page),
         ),
       ]),
+    );
+  }
+
+  Widget _filterChip(BuildContext context, String label, bool selected,
+      VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+              color: selected ? AppColors.accent : AppColors.textSec(context)),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: selected ? Colors.white : AppColors.textSec(context)),
+        ),
+      ),
     );
   }
 }

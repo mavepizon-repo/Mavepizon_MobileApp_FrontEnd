@@ -40,6 +40,7 @@ class StudentCourseProvider extends ChangeNotifier {
         final pageData = PaginationData.parse(result['data']);
         // get-all returns BOTH courses and internships; keep only the
         // category == COURSE entries in the student course list.
+        // The All/Offered filter is applied on the course list screen.
         _courses = pageData.content
             .where((e) =>
                 e is Map &&
